@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.2.3] - 2026-03-28
+
+### Changed
+
+- Fixed the npm package `bin` metadata to use `bin/lore.js`, so npm preserves the global `lore` command during publish instead of auto-correcting it away.
+
 ## [1.2.2] - 2026-03-28
 
 ### Changed

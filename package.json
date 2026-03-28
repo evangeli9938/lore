@@ -1,6 +1,6 @@
 {
   "name": "codex-lore",
-  "version": "1.2.2",
+  "version": "1.2.3",
   "description": "Persistent cross-project memory for Codex — rules, decisions, and context that follow you.",
   "license": "MIT",
   "homepage": "https://github.com/yimwoo/lore",
@@ -14,7 +14,7 @@
   "author": "Yiming Wu",
   "type": "module",
   "bin": {
-    "lore": "./bin/lore.js"
+    "lore": "bin/lore.js"
   },
   "files": [
     ".codex-plugin/",
