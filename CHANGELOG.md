@@ -1,5 +1,14 @@
 # Changelog
 
+## [1.2.2] - 2026-03-28
+
+### Changed
+
+- Fixed the global `lore` npm wrapper so it works from any current working directory by resolving the packaged `tsx` loader and CLI script relative to the installed package.
+- Replaced the installer's `python3` marketplace update step with `node`, removing an unnecessary install prerequisite.
+- Simplified the README to present Lore as a Codex plugin first, with plugin-installed CLI examples that match the primary install flow.
+- Updated the installer success message to use `npm run cli -- ...`, matching the README and the plugin checkout workflow.
+
 ## [1.2.1] - 2026-03-28
 
 ### Added

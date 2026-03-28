@@ -15,7 +15,6 @@ Lore remembers your domain rules, architecture decisions, coding preferences, an
 - [Shared Knowledge Kinds](#shared-knowledge-kinds)
 - [You Control Everything](#you-control-everything)
 - [MCP Recall Tools](#mcp-recall-tools)
-- [CLI Reference](#cli-reference)
 - [Installation](#installation)
 - [Development](#development)
 - [Design](#design)
@@ -24,6 +23,8 @@ Lore remembers your domain rules, architecture decisions, coding preferences, an
 - [License](#license)
 
 ## Quick Start
+
+Install Lore into Codex hooks, MCP, and Local Plugins:
 
 ```bash
 git clone https://github.com/yimwoo/lore.git /tmp/lore && bash /tmp/lore/install.sh
@@ -34,7 +35,8 @@ Then restart Codex, open **Local Plugins**, find **Lore**, and click **Install**
 ### Teach Lore Something
 
 ```bash
-lore promote \
+cd ~/.codex/plugins/lore-source
+npm run cli -- promote \
   --kind domain_rule \
   --title "Use snake_case for DB columns" \
   --content "All database columns must use snake_case naming across services and migrations." \
@@ -46,13 +48,15 @@ That's now in your shared knowledge. Every future session, across every project,
 ### See What Lore Knows
 
 ```bash
-lore list-shared
+cd ~/.codex/plugins/lore-source
+npm run cli -- list-shared
 ```
 
 ### Remove Outdated Knowledge
 
 ```bash
-lore demote <entry-id> --reason "migrated to camelCase"
+cd ~/.codex/plugins/lore-source
+npm run cli -- demote <entry-id> --reason "migrated to camelCase"
 ```
 
 ## What Lore Does
@@ -140,55 +144,20 @@ Your agent can proactively search Lore for deeper context:
 
 Bundled with the plugin install — no separate MCP configuration needed.
 
-## CLI Reference
-
-```bash
-# Install the global CLI
-npm install -g codex-lore
-
-# Promote knowledge
-lore promote --kind domain_rule --title "..." --content "..." --tags "..."
-
-# Browse shared knowledge
-lore list-shared                          # all approved entries
-lore list-shared --kind architecture_fact # filter by kind
-lore list-shared --status pending         # review suggestions
-
-# Inspect an entry's full history
-lore inspect <entry-id>
-
-# Demote (soft-delete)
-lore demote <entry-id> --reason "..."
-
-# Review suggestions
-lore suggest                              # generate candidates
-lore approve <entry-id>                   # approve a suggestion
-lore reject <entry-id> --reason "..."     # reject with reason
-```
-
 ## Installation
 
-### Prerequisites
+Prerequisites:
 
 - Node.js 18+
 - npm
-- python3
 
-### One-Line Install
+Use this installer if you want Lore wired into Codex hooks, MCP, and Local Plugins.
 
 ```bash
 git clone https://github.com/yimwoo/lore.git /tmp/lore && bash /tmp/lore/install.sh
 ```
 
 This clones Lore to `~/.codex/plugins/lore-source/`, runs `npm install`, registers a marketplace entry in `~/.agents/plugins/marketplace.json`, and refreshes Codex's local plugin cache.
-
-### Global CLI Install
-
-```bash
-npm install -g codex-lore
-```
-
-This installs the `lore` command globally so you can promote, inspect, and manage shared knowledge from any shell.
 
 ### For Contributors
 
@@ -201,7 +170,7 @@ bash install.sh --local
 ### Manual Installation
 
 ```bash
-git clone https://github.com/pchaganti/gx-lore.git ~/.codex/plugins/lore-source
+git clone https://github.com/yimwoo/lore.git ~/.codex/plugins/lore-source
 cd ~/.codex/plugins/lore-source
 npm install
 ```
@@ -256,7 +225,7 @@ The installer detects an existing checkout and updates in place. Restart Codex a
 ## Development
 
 ```bash
-npm test            # 317 tests
+npm test            # 318 tests
 npm run test:watch  # watch mode
 npm run typecheck   # tsc --noEmit
 npm run demo        # simulated session

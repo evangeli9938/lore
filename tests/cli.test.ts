@@ -1,3 +1,5 @@
+import { execFile } from "node:child_process";
+import { promisify } from "node:util";
 import { Readable, Writable } from "node:stream";
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -8,6 +10,8 @@ import { createLoreApp } from "../src/app";
 import { runCli } from "../src/cli";
 
 const tempDirs: string[] = [];
+const execFileAsync = promisify(execFile);
+const repoRoot = process.cwd();
 
 const createWritable = () => {
   let value = "";
@@ -101,5 +105,20 @@ describe("runCli", () => {
     expect(exitCode).toBe(0);
     expect(stderr.read()).toMatch(/skipped invalid event/i);
     expect(stdout.read()).toContain("Events: 1");
+  });
+
+  it("runs the lore bin wrapper from a different working directory", async () => {
+    const otherCwd = await mkdtemp(join(tmpdir(), "lore-bin-"));
+    tempDirs.push(otherCwd);
+
+    const { stdout, stderr } = await execFileAsync(
+      process.execPath,
+      [join(repoRoot, "bin", "lore.js"), "help"],
+      { cwd: otherCwd },
+    );
+
+    expect(stderr).toBe("");
+    expect(stdout).toContain("Lore CLI");
+    expect(stdout).toContain("list-shared");
   });
 });

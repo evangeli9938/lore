@@ -101,71 +101,63 @@ if [ ! -f "$PLUGIN_MANIFEST" ]; then
   exit 1
 fi
 
-python3 -c "
-import json, sys, os
+node -e '
+const fs = require("node:fs");
+const manifestPath = process.argv[1];
+const destPath = process.argv[2];
+const pluginSourcePath = process.argv[3];
+const ownerName = process.env.USER ?? "unknown";
 
-manifest_path = sys.argv[1]
-dest_path = sys.argv[2]
-plugin_source_path = sys.argv[3]
-owner_name = os.environ.get('USER', 'unknown')
+const manifest = JSON.parse(fs.readFileSync(manifestPath, "utf8"));
 
-with open(manifest_path) as f:
-    manifest = json.load(f)
+const loreEntry = {
+  name: manifest.name,
+  description: manifest.description,
+  version: manifest.version,
+  author: manifest.author ?? { name: ownerName },
+  source: {
+    source: "local",
+    path: pluginSourcePath,
+  },
+  policy: {
+    installation: "AVAILABLE",
+    authentication: "ON_INSTALL",
+  },
+  category: "Productivity",
+};
 
-lore_entry = {
-    'name': manifest['name'],
-    'description': manifest['description'],
-    'version': manifest['version'],
-    'author': manifest.get('author', {'name': owner_name}),
-    'source': {
-        'source': 'local',
-        'path': plugin_source_path,
-    },
-    'policy': {
-        'installation': 'AVAILABLE',
-        'authentication': 'ON_INSTALL',
-    },
-    'category': 'Productivity',
+if (manifest.interface) {
+  loreEntry.interface = manifest.interface;
 }
 
-if manifest.get('interface'):
-    lore_entry['interface'] = manifest['interface']
+const dest = fs.existsSync(destPath)
+  ? JSON.parse(fs.readFileSync(destPath, "utf8"))
+  : {
+      name: "codex-plugins",
+      description: "Codex plugin marketplace",
+      owner: { name: ownerName },
+      interface: { displayName: "Local Plugins" },
+      plugins: [],
+    };
 
-if os.path.exists(dest_path):
-    with open(dest_path) as f:
-        dest = json.load(f)
-else:
-    dest = {
-        'name': 'codex-plugins',
-        'description': 'Codex plugin marketplace',
-        'owner': {'name': owner_name},
-        'interface': {'displayName': 'Local Plugins'},
-        'plugins': [],
-    }
+dest.name ??= "codex-plugins";
+dest.description ??= "Codex plugin marketplace";
+dest.owner ??= { name: ownerName };
+dest.interface ??= { displayName: "Local Plugins" };
+dest.plugins ??= [];
 
-dest.setdefault('name', 'codex-plugins')
-dest.setdefault('description', 'Codex plugin marketplace')
-dest.setdefault('owner', {'name': owner_name})
-dest.setdefault('interface', {'displayName': 'Local Plugins'})
-dest.setdefault('plugins', [])
+const existingIndex = dest.plugins.findIndex((plugin) => plugin?.name === "lore");
+if (existingIndex >= 0) {
+  dest.plugins[existingIndex] = loreEntry;
+} else {
+  dest.plugins.push(loreEntry);
+}
 
-updated = False
-for index, plugin in enumerate(dest['plugins']):
-    if plugin.get('name') == 'lore':
-        dest['plugins'][index] = lore_entry
-        updated = True
-        break
+fs.writeFileSync(destPath, `${JSON.stringify(dest, null, 2)}\n`, "utf8");
 
-if not updated:
-    dest['plugins'].append(lore_entry)
-
-with open(dest_path, 'w') as f:
-    json.dump(dest, f, indent=2)
-    f.write('\n')
-
-action = 'Updated' if updated else 'Added'
-print(f'{action} Lore plugin entry (version {lore_entry[\"version\"]})')
-" "$PLUGIN_MANIFEST" "$MARKETPLACE_FILE" "$MARKETPLACE_PLUGIN_PATH"
+const action = existingIndex >= 0 ? "Updated" : "Added";
+console.log(`${action} Lore plugin entry (version ${loreEntry.version})`);
+' "$PLUGIN_MANIFEST" "$MARKETPLACE_FILE" "$MARKETPLACE_PLUGIN_PATH"
 
 refresh_codex_plugin_cache "$PLUGIN_PATH"
 
@@ -178,7 +170,8 @@ echo "  2. Open the plugin directory, switch to Local Plugins, and install Lore"
 echo "  3. MCP recall tools are bundled with the plugin install"
 echo "  4. Start promoting knowledge:"
 echo ""
-echo "     node --import tsx $PLUGIN_PATH/src/cli.ts promote \\"
+echo "     cd $PLUGIN_PATH"
+echo "     npm run cli -- promote \\"
 echo "       --kind domain_rule \\"
 echo "       --title \"Use snake_case\" \\"
 echo "       --content \"All DB columns must use snake_case.\""
