@@ -1,5 +1,19 @@
 # Changelog
 
+## [1.3.0] - 2026-03-28
+
+### Added
+
+- LLM-oriented extraction and consolidation seams for Lore ingestion, including new extraction provider interfaces, draft storage, consolidation state, and a consolidator-driven pending knowledge pipeline.
+- Stop-hook drafting support and SessionStart consolidation with a lightweight pending digest.
+- New test coverage for provider injection, draft-store behavior, consolidator behavior, pending-only deletion, SessionStart pending digests, and Stop-hook failure-safe extraction behavior.
+
+### Changed
+
+- Retired the old CLI-backed `SuggestionEngine` pending-entry writer path. Pending shared knowledge is now produced by the consolidator, with `lore suggest` repurposed as an informational/debug command.
+- Updated shared types, config, and storage layout to support draft candidates, consolidation watermarks, evidence summaries, contradiction counts, source-turn counts, and pending-entry merge metadata.
+- Updated README and design docs to reflect the new ingestion architecture and approval surface.
+
 ## [1.2.3] - 2026-03-28
 
 ### Changed

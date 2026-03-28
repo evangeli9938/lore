@@ -202,4 +202,59 @@ describe("session-start integration", () => {
     expect(entry).toHaveProperty("content");
     expect(entry).toHaveProperty("contentHash");
   });
+
+  it("renders pending digest when pending entries exist", async () => {
+    const { runSessionStart } = await import("../src/plugin/session-start");
+    const { resolveConfig } = await import("../src/config");
+    const sharedEntries = [
+      makeSharedEntry(),
+      makeSharedEntry({
+        id: "sk-pending-1",
+        title: "Pending rule",
+        content: "Pending content",
+        contentHash: contentHash("Pending content"),
+        approvalStatus: "pending",
+        promotionSource: "suggested",
+        createdBy: "system",
+      }),
+    ];
+    await writeFile(sharedStorePath, `${JSON.stringify(sharedEntries, null, 2)}\n`, "utf8");
+
+    const result = await runSessionStart(
+      JSON.stringify({ session_id: "session-1", cwd: "/tmp/workspaces/my-project" }),
+      {
+        config: resolveConfig({
+          sharedStoragePath: sharedStorePath,
+          projectMemoryDir,
+          consolidationTimeoutMs: 5,
+        }),
+        consolidate: async () => undefined,
+      },
+    );
+
+    expect(result.additionalContext).toContain("## Pending Suggestions");
+    expect(result.additionalContext).toContain("lore list-shared --status pending");
+  });
+
+  it("degrades gracefully when consolidation throws", async () => {
+    const { runSessionStart } = await import("../src/plugin/session-start");
+    const { resolveConfig } = await import("../src/config");
+    await writeFile(sharedStorePath, `${JSON.stringify([makeSharedEntry()], null, 2)}\n`, "utf8");
+
+    const result = await runSessionStart(
+      JSON.stringify({ session_id: "session-1", cwd: "/tmp/workspaces/my-project" }),
+      {
+        config: resolveConfig({
+          sharedStoragePath: sharedStorePath,
+          projectMemoryDir,
+          consolidationTimeoutMs: 5,
+        }),
+        consolidate: async () => {
+          throw new Error("timeout");
+        },
+      },
+    );
+
+    expect(result.additionalContext).toContain("Use snake_case");
+  });
 });

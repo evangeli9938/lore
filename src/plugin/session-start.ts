@@ -2,17 +2,27 @@ import { createInterface } from "node:readline";
 
 import { FileSharedStore } from "../core/file-shared-store";
 import { FileMemoryStore } from "../core/memory-store";
+import { FileApprovalStore } from "../promotion/approval-store";
+import { Consolidator } from "../promotion/consolidator";
+import { DraftStoreReader } from "../promotion/draft-store";
+import { ObservationLogReader } from "../promotion/observation-log";
 import { resolveConfig } from "../config";
 import { buildSessionStartContext } from "./context-builder";
 import { renderSessionStartTemplate } from "./session-start-template";
 import type { LoreCapabilities } from "../shared/types";
 import { deriveSessionKey, initWhisperState } from "./whisper-state";
 import type { MemoryEntry } from "../shared/types";
+import { CodexConsolidationProvider } from "../extraction/codex-consolidation-provider";
 
 type SessionMetadata = {
   session_id?: string;
   cwd?: string;
   model?: string;
+};
+
+type SessionStartDependencies = {
+  config?: ReturnType<typeof resolveConfig>;
+  consolidate?: () => Promise<void>;
 };
 
 const deriveProjectId = (cwd: string): string => {
@@ -64,8 +74,9 @@ const getLoreCapabilities = (): LoreCapabilities => ({
 
 export const runSessionStart = async (
   stdinData?: string,
+  dependencies?: SessionStartDependencies,
 ): Promise<{ additionalContext: string }> => {
-  const config = resolveConfig();
+  const config = dependencies?.config ?? resolveConfig();
 
   let metadata: SessionMetadata = {};
   const input = stdinData ?? (await readStdin());
@@ -85,6 +96,48 @@ export const runSessionStart = async (
     storagePath: config.sharedStoragePath,
   });
 
+  const runConsolidationPass = async (): Promise<void> => {
+    if (dependencies?.consolidate) {
+      await dependencies.consolidate();
+      return;
+    }
+
+    const consolidator = new Consolidator({
+      draftReader: new DraftStoreReader({
+        draftDir: config.draftDir,
+      }),
+      observationReader: new ObservationLogReader({
+        observationDir: config.observationDir,
+      }),
+      sharedStore,
+      approvalStore: new FileApprovalStore({
+        ledgerPath: config.approvalLedgerPath,
+        sharedStore,
+      }),
+      provider: new CodexConsolidationProvider(),
+      statePath: config.consolidationStatePath,
+    });
+
+    await consolidator.run();
+  };
+
+  const runConsolidationWithTimeout = async (): Promise<void> => {
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    try {
+      await Promise.race([
+        runConsolidationPass(),
+        new Promise<void>((resolve) => {
+          timer = setTimeout(resolve, config.consolidationTimeoutMs);
+          timer.unref?.();
+        }),
+      ]);
+    } finally {
+      if (timer) {
+        clearTimeout(timer);
+      }
+    }
+  };
+
   // Derive currentTags from project memory if available
   let currentTags: string[] = [];
   try {
@@ -98,12 +151,21 @@ export const runSessionStart = async (
   }
 
   try {
+    try {
+      await runConsolidationWithTimeout();
+    } catch {
+      // Consolidation is advisory only at startup.
+    }
+
     const result = await buildSessionStartContext({
       store: sharedStore,
       currentProjectId,
       currentTags,
       config: config.sessionStart,
     });
+    const pendingCount = (
+      await sharedStore.list({ approvalStatus: "pending" })
+    ).length;
 
     // Initialize whisper state with injected content hashes (if session_id available)
     if (metadata.session_id) {
@@ -125,6 +187,7 @@ export const runSessionStart = async (
     const template = renderSessionStartTemplate({
       entries: result.selectedEntries,
       capabilities,
+      pendingCount,
     });
 
     return { additionalContext: template ?? "" };
