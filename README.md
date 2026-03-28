@@ -88,16 +88,15 @@ Lore keeps two tiers of memory:
 - **Project memory** — per-repo session context (active files, recent errors). Short-term working memory.
 - **Shared knowledge** — cross-project facts (domain rules, architecture decisions, preferences). Long-term memory you build over time.
 
-Shared knowledge reaches your agent through four delivery layers:
+Shared knowledge reaches your agent through three runtime delivery layers:
 
 | Layer | When | What |
 | --- | --- | --- |
 | **SessionStart** | Once per session | Top 5-15 stable facts, biased toward the current workspace |
-| **Whisper** | Before each prompt | 0-4 adaptive bullets — only when relevant, silent otherwise |
+| **Whisper** | Before each prompt | 0-4 adaptive bullets — shared knowledge first, plus light high-confidence session nudges when useful |
 | **MCP Recall** | On demand | Deep search across all shared knowledge |
-| **Hints** | Pre-turn | Advisory nudges combining project + shared context |
 
-The **whisper system** is the key feature. It scores each knowledge entry against your current prompt using keyword overlap, tag matching, and session affinity — then applies repetition decay so it never nags. If nothing is relevant, it says nothing. Your agent doesn't even know Lore is there.
+The **whisper system** is the key feature. It scores each knowledge entry against your current prompt using keyword overlap, tag matching, session affinity, and recent session signals such as files and tool usage — then applies repetition decay so it never nags. Shared knowledge stays the primary channel; high-confidence session nudges are secondary and only appear when helpful. If nothing is relevant, it says nothing. Your agent doesn't even know Lore is there.
 
 For a deeper dive into architecture, whisper scoring, and promotion workflow, see the [Design Overview](docs/design.md).
 
@@ -214,12 +213,12 @@ Restart Codex after installing.
 
 ### Hooks
 
-Lore provides three Codex hooks for the whisper system:
+Lore provides three Codex hooks for the Lore runtime:
 
 | Hook | Purpose |
 | --- | --- |
 | `SessionStart` | Injects shared knowledge, initializes whisper state |
-| `UserPromptSubmit` | Whispers relevant context before each prompt |
+| `UserPromptSubmit` | Whispers relevant shared knowledge and high-confidence session nudges before each prompt |
 | `Stop` (async) | Updates session context after each turn |
 
 Hooks are auto-discovered from `.codex/hooks.json` in your repo. For global use, copy to `~/.codex/hooks.json`.
@@ -249,7 +248,7 @@ The installer detects an existing checkout and updates in place. Restart Codex a
 ## Development
 
 ```bash
-npm test            # 309 tests
+npm test            # 317 tests
 npm run test:watch  # watch mode
 npm run typecheck   # tsc --noEmit
 npm run demo        # simulated session
@@ -265,7 +264,7 @@ src/
   mcp/                MCP recall tool handlers
   shared/             Types and validators
   ui/                 React sidecar component (experimental)
-tests/                25 test files, 309 tests
+tests/                26 test files, 317 tests
 ```
 
 ## Design

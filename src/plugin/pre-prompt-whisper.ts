@@ -38,6 +38,18 @@ type WhisperBullet = {
   score: number;
 };
 
+const HIGH_CONFIDENCE_HINT_THRESHOLD = 0.9;
+
+const isWeakPrompt = (
+  promptTokens: string[],
+  promptTags: string[],
+): boolean => promptTags.length === 0 && promptTokens.length <= 4;
+
+const hasStrongSessionContext = (
+  recentFileTags: string[],
+  recentToolNames: string[],
+): boolean => recentFileTags.length > 0 || recentToolNames.length > 0;
+
 export const selectWhisperBullets = (
   input: WhisperInput,
   state: WhisperSessionState,
@@ -46,8 +58,12 @@ export const selectWhisperBullets = (
   config: WhisperConfig,
 ): WhisperBullet[] => {
   const promptTokens = tokenize(input.promptText, config.keywordMinTokenLength);
-  const promptTags = inferPromptTags(input.promptText, state.recentFiles);
-  const recentFileTags = inferPromptTags("", state.recentFiles);
+  const promptTags = inferPromptTags(
+    input.promptText,
+    state.recentFiles,
+    state.recentToolNames,
+  );
+  const recentFileTags = inferPromptTags("", state.recentFiles, state.recentToolNames);
   const currentProjectId =
     input.cwd.split("/").filter(Boolean).pop() ?? "unknown";
 
@@ -105,6 +121,11 @@ export const selectWhisperBullets = (
   // Select hint bullets (risk, next_step, focus only — no recall)
   const selectedHintTexts = new Set(selectedShared.map((b) => b.text));
   const selectedHints: WhisperBullet[] = [];
+  const weakPrompt = isWeakPrompt(promptTokens, promptTags);
+  const strongSessionContext = hasStrongSessionContext(
+    recentFileTags,
+    state.recentToolNames,
+  );
 
   for (const bullet of hintBullets) {
     if (selectedHints.length >= config.maxHintBullets) break;
@@ -113,6 +134,14 @@ export const selectWhisperBullets = (
 
     // Intra-payload dedup: skip if hint text matches a selected shared entry
     if (selectedHintTexts.has(bullet.text)) continue;
+
+    const noSharedSelected = selectedShared.length === 0;
+    const highConfidence = bullet.confidence >= HIGH_CONFIDENCE_HINT_THRESHOLD;
+    const allowHint = highConfidence && (
+      (noSharedSelected && (strongSessionContext || !weakPrompt)) ||
+      (!noSharedSelected && strongSessionContext)
+    );
+    if (!allowHint) continue;
 
     selectedHints.push({
       label: bullet.category,

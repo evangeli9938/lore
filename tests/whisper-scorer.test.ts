@@ -83,29 +83,35 @@ describe("keywordScore", () => {
 
 describe("inferPromptTags", () => {
   it("infers typescript from .ts extension", () => {
-    const tags = inferPromptTags("fix src/foo.ts", []);
+    const tags = inferPromptTags("fix src/foo.ts", [], []);
     expect(tags).toContain("typescript");
   });
 
   it("infers database from .sql extension", () => {
-    const tags = inferPromptTags("run migrate.sql", []);
+    const tags = inferPromptTags("run migrate.sql", [], []);
     expect(tags).toContain("database");
   });
 
   it("infers testing from npm command", () => {
-    const tags = inferPromptTags("npm test failed", []);
+    const tags = inferPromptTags("npm test failed", [], []);
     expect(tags).toContain("testing");
   });
 
   it("infers domain keyword billing", () => {
-    const tags = inferPromptTags("fix the billing endpoint", []);
+    const tags = inferPromptTags("fix the billing endpoint", [], []);
     expect(tags).toContain("billing");
   });
 
   it("infers from recent files", () => {
-    const tags = inferPromptTags("fix this", ["src/app.ts", "schema.sql"]);
+    const tags = inferPromptTags("fix this", ["src/app.ts", "schema.sql"], []);
     expect(tags).toContain("typescript");
     expect(tags).toContain("database");
+  });
+
+  it("infers tags from recent tool names", () => {
+    const tags = inferPromptTags("fix this", [], ["psql", "docker"]);
+    expect(tags).toContain("database");
+    expect(tags).toContain("infrastructure");
   });
 });
 
@@ -187,6 +193,24 @@ describe("turnRelevance", () => {
     const r2 = turnRelevance(entry, input);
     expect(r1.score).toBe(r2.score);
     expect(r1.topReason).toBe(r2.topReason);
+  });
+
+  it("benefits from tags inferred via recent tool names when prompt signal is weak", () => {
+    const entry = makeEntry({
+      kind: "architecture_fact",
+      tags: ["database"],
+      sourceProjectIds: ["other"],
+    });
+    const promptTags = inferPromptTags("help me fix this", [], ["psql"]);
+
+    const result = turnRelevance(entry, {
+      promptTokens: tokenize("help me fix this"),
+      promptTags,
+      currentProjectId: "other-project",
+      recentFileTags: [],
+    });
+
+    expect(result.score).toBeGreaterThan(0.15);
   });
 });
 

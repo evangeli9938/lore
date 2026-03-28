@@ -1,5 +1,22 @@
 # Changelog
 
+## [1.2.0] - 2026-03-28
+
+### Added
+
+- New end-to-end coverage for Lore hook lifecycle behavior, including SessionStart injection, whisper no-op behavior without `session_id`, and cross-project sharing of a promoted Python rule across two separate Python projects.
+- New scorer and whisper-selection tests covering recent tool-name context and high-confidence session nudges.
+
+### Changed
+
+- **Whisper scoring** now incorporates `recentToolNames` as a first-class session signal, so recent tool usage such as `npm`, `vitest`, `psql`, and `docker` can influence turn relevance.
+- **Pre-prompt whisper selection** now keeps shared knowledge as the primary channel while allowing light, high-confidence session nudges only when session context is strong or the prompt is otherwise underspecified.
+- Updated README delivery-layer and whisper behavior language to match the current runtime behavior and test counts.
+
+### Removed
+
+- Removed no-longer-needed local assets `assets/lore-icon.svg`, `assets/lore-logo.svg`, and `.codex-echo/`.
+
 ## [1.1.0] - 2026-03-28
 
 ### Added

@@ -222,6 +222,50 @@ describe("selectWhisperBullets", () => {
     );
     expect(bullets).toHaveLength(0);
   });
+
+  it("suppresses standalone hints when prompt is irrelevant and session context is weak", () => {
+    const bullets = selectWhisperBullets(
+      { promptText: "write a haiku about clouds", sessionKey: "k", cwd: "/proj-1" },
+      makeState(),
+      [],
+      [makeHintBullet({ confidence: 0.95 })],
+      config,
+    );
+
+    expect(bullets).toHaveLength(0);
+  });
+
+  it("allows a high-confidence hint for a vague prompt when session context is strong", () => {
+    const bullets = selectWhisperBullets(
+      { promptText: "help me fix this", sessionKey: "k", cwd: "/proj-1" },
+      makeState({
+        recentFiles: ["src/hint-engine.ts"],
+        recentToolNames: ["npm"],
+      }),
+      [],
+      [makeHintBullet({ confidence: 0.95 })],
+      config,
+    );
+
+    expect(bullets).toHaveLength(1);
+    expect(bullets[0]!.source).toBe("hint");
+  });
+
+  it("keeps shared bullets ahead of hint bullets when both are eligible", () => {
+    const bullets = selectWhisperBullets(
+      { promptText: "fix the database column naming", sessionKey: "k", cwd: "/proj-1" },
+      makeState({
+        recentFiles: ["src/hint-engine.ts"],
+        recentToolNames: ["npm"],
+      }),
+      [makeEntry()],
+      [makeHintBullet({ confidence: 0.95 })],
+      config,
+    );
+
+    expect(bullets.length).toBeGreaterThan(1);
+    expect(bullets[0]!.source).toBe("shared");
+  });
 });
 
 describe("formatWhisper", () => {

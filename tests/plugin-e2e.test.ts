@@ -6,6 +6,7 @@ import { join } from "node:path";
 
 import { afterEach, describe, expect, it } from "vitest";
 
+import { FileMemoryStore } from "../src/core/memory-store";
 import { deriveSessionKey } from "../src/plugin/whisper-state";
 import type { WhisperSessionState } from "../src/shared/types";
 
@@ -71,6 +72,31 @@ const readWhisperStateFile = async (
   );
   const content = await readFile(statePath, "utf8");
   return JSON.parse(content) as WhisperSessionState;
+};
+
+const seedProjectMemory = async (
+  homeDir: string,
+  projectId: string,
+  tags: string[],
+): Promise<void> => {
+  const store = new FileMemoryStore({
+    storageDir: join(homeDir, ".lore", "projects"),
+    now: () => "2026-03-28T17:00:00.000Z",
+    createId: () => "memory-python-1",
+  });
+
+  const result = await store.saveCandidates([
+    {
+      projectId,
+      kind: "working_context",
+      content: "This project uses Python modules and pytest-based testing.",
+      sourceEventIds: ["evt-python-1"],
+      confidence: 0.92,
+      tags,
+    },
+  ]);
+
+  expect(result.ok).toBe(true);
 };
 
 afterEach(async () => {
@@ -248,5 +274,81 @@ describe("Lore plugin end-to-end lifecycle", () => {
 
     const whisperDir = join(homeDir, ".lore", "whisper-sessions");
     await expect(access(whisperDir)).rejects.toThrow();
+  });
+
+  it("shares a promoted Python rule across sessions in different Python projects", async () => {
+    const homeDir = await mkdtemp(join(tmpdir(), "lore-plugin-e2e-"));
+    tempDirs.push(homeDir);
+
+    const promote = await runLoreCommand(
+      [
+        "scripts/cli.ts",
+        "promote",
+        "--kind",
+        "domain_rule",
+        "--title",
+        "Prefer pytest fixtures",
+        "--content",
+        "Prefer pytest fixtures over setUp helpers in Python projects.",
+        "--tags",
+        "python,testing,style",
+        "--project",
+        "project-a",
+        "--json",
+      ],
+      { homeDir },
+    );
+
+    expect(promote.code).toBe(0);
+    expect(promote.stderr).toBe("");
+
+    await seedProjectMemory(homeDir, "project-b", ["python", "testing"]);
+
+    const sessionA = await runLoreCommand(
+      ["src/plugin/session-start.ts"],
+      {
+        homeDir,
+        input: JSON.stringify({
+          session_id: "session-project-a",
+          cwd: "/tmp/workspaces/project-a",
+        }),
+      },
+    );
+
+    expect(sessionA.code).toBe(0);
+    const payloadA = JSON.parse(sessionA.stdout) as {
+      additionalContext: string;
+    };
+    expect(payloadA.additionalContext).toContain("Prefer pytest fixtures");
+
+    const sessionB = await runLoreCommand(
+      ["src/plugin/session-start.ts"],
+      {
+        homeDir,
+        input: JSON.stringify({
+          session_id: "session-project-b",
+          cwd: "/tmp/workspaces/project-b",
+        }),
+      },
+    );
+
+    expect(sessionB.code).toBe(0);
+    expect(sessionB.stderr).toBe("");
+
+    const payloadB = JSON.parse(sessionB.stdout) as {
+      additionalContext: string;
+    };
+    expect(payloadB.additionalContext).toContain("# Lore");
+    expect(payloadB.additionalContext).toContain("Prefer pytest fixtures");
+    expect(payloadB.additionalContext).toContain(
+      "Prefer pytest fixtures over setUp helpers in Python projects.",
+    );
+
+    const projectBState = await readWhisperStateFile(
+      homeDir,
+      "session-project-b",
+      "/tmp/workspaces/project-b",
+    );
+    expect(projectBState.injectedContentHashes.length).toBeGreaterThan(0);
   });
 });

@@ -80,6 +80,7 @@ const DOMAIN_KEYWORDS = new Set([
 export const inferPromptTags = (
   promptText: string,
   recentFiles: string[],
+  recentToolNames: string[],
 ): string[] => {
   const tags = new Set<string>();
 
@@ -104,6 +105,12 @@ export const inferPromptTags = (
   const words = promptText.toLowerCase().split(/\s+/);
   for (const word of words) {
     const tag = COMMAND_TAG_MAP[word];
+    if (tag) tags.add(tag);
+  }
+
+  for (const toolName of recentToolNames) {
+    const normalized = toolName.toLowerCase();
+    const tag = COMMAND_TAG_MAP[normalized];
     if (tag) tags.add(tag);
   }
 
