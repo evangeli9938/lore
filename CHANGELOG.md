@@ -1,5 +1,16 @@
 # Changelog
 
+## [1.3.1] - 2026-03-28
+
+### Added
+
+- Non-blocking SessionStart reminder when Codex is configured with `auth_mode: "chatgpt"` but no `OPENAI_API_KEY`, so users understand why LLM ingestion is inactive.
+- Rate-limited runtime auth warnings for Lore's extraction path when the configured Responses API returns `401` or `403`.
+
+### Changed
+
+- Added coverage for the new ingestion-auth reminder paths in SessionStart and the extraction provider.
+
 ## [1.3.0] - 2026-03-28
 
 ### Added
