@@ -2,68 +2,60 @@
 
 **A Codex plugin that gives your AI coding agent persistent, shared knowledge across every project and session.**
 
-Lore remembers your domain rules, architecture decisions, coding preferences, and glossary terms — and whispers the right ones at the right time, so you never have to re-explain your codebase again.
+Lore watches your sessions, learns your patterns, and whispers the right context — naming conventions, architecture decisions, past choices — before each prompt. Automatically. You just install it and code.
 
 ---
 
 ## Table of Contents
 
-- [Quick Start](#quick-start)
-- [What Lore Does](#what-lore-does)
-- [How It Works](#how-it-works)
-- [Real-World Examples](#real-world-examples)
-- [Shared Knowledge Kinds](#shared-knowledge-kinds)
-- [You Control Everything](#you-control-everything)
-- [MCP Recall Tools](#mcp-recall-tools)
-- [Installation](#installation)
-- [Development](#development)
-- [Design](#design)
-- [Uninstalling](#uninstalling)
-- [Contributing](#contributing)
-- [License](#license)
+- [Lore — Cross-Project Memory for Codex](#lore--cross-project-memory-for-codex)
+  - [Table of Contents](#table-of-contents)
+  - [Quick Start](#quick-start)
+  - [What Lore Does](#what-lore-does)
+  - [How Lore Learns](#how-lore-learns)
+  - [How It Works](#how-it-works)
+  - [Real-World Examples](#real-world-examples)
+  - [Shared Knowledge Kinds](#shared-knowledge-kinds)
+  - [You Control Everything](#you-control-everything)
+  - [MCP Recall Tools](#mcp-recall-tools)
+  - [Managing Knowledge (Power Users)](#managing-knowledge-power-users)
+    - [Promote a rule](#promote-a-rule)
+    - [See what Lore knows](#see-what-lore-knows)
+    - [Remove outdated knowledge](#remove-outdated-knowledge)
+  - [Installation](#installation)
+    - [For Contributors](#for-contributors)
+    - [Manual Installation](#manual-installation)
+    - [Hooks](#hooks)
+    - [Storage](#storage)
+    - [Updating](#updating)
+  - [Development](#development)
+    - [Project Structure](#project-structure)
+  - [Design](#design)
+  - [Uninstalling](#uninstalling)
+  - [Contributing](#contributing)
+  - [License](#license)
+
+---
 
 ## Quick Start
-
-Install Lore into Codex hooks, MCP, and Local Plugins:
 
 ```bash
 git clone https://github.com/yimwoo/lore.git /tmp/lore && bash /tmp/lore/install.sh
 ```
 
-Then restart Codex, open **Local Plugins**, find **Lore**, and click **Install**.
+Restart Codex, open **Local Plugins**, find **Lore**, and click **Install**.
 
-### Teach Lore Something
+**That's it. Start coding. Lore starts learning.**
 
-```bash
-cd ~/.codex/plugins/lore-source
-npm run cli -- promote \
-  --kind domain_rule \
-  --title "Use snake_case for DB columns" \
-  --content "All database columns must use snake_case naming across services and migrations." \
-  --tags "naming,database"
-```
+> Want to teach Lore rules directly right now? See [Managing Knowledge](#managing-knowledge-power-users).
 
-That's now in your shared knowledge. Every future session, across every project, your agent knows this rule.
-
-### See What Lore Knows
-
-```bash
-cd ~/.codex/plugins/lore-source
-npm run cli -- list-shared
-```
-
-### Remove Outdated Knowledge
-
-```bash
-cd ~/.codex/plugins/lore-source
-npm run cli -- demote <entry-id> --reason "migrated to camelCase"
-```
+---
 
 ## What Lore Does
 
-Every time you start a new Codex session, your coding agent forgets everything — your naming conventions, your architecture decisions, why you chose library A over B. You end up re-explaining the same context across every project, every session, every day.
+Every time you start a new Codex session, your agent forgets everything — your naming conventions, your architecture decisions, why you chose library A over B. You re-explain the same context every session, every project, every day.
 
-Lore fixes this. It's a [Codex](https://openai.com/index/introducing-codex/) plugin that maintains persistent, cross-project memory and delivers it automatically:
+Lore fixes this. It maintains persistent, cross-project memory and delivers it automatically:
 
 ```text
 You type: "fix the billing migration"
@@ -71,15 +63,37 @@ You type: "fix the billing migration"
 Your agent sees (you don't have to):
   [Lore]
   - rule: DB columns use snake_case across all services.
-  - architecture: MySql is the source of truth for billing state.
+  - architecture: MySQL is the source of truth for billing state.
 
 Your agent responds:
   "Since your project uses snake_case for DB columns, I'll name the
-   new field payment_status_code. And I'll write directly to MySql
+   new field payment_status_code. And I'll write directly to MySQL
    rather than going through the Redis cache."
 ```
 
 No extra prompts. No copy-pasting context. Your agent just *knows*.
+
+---
+
+## How Lore Learns
+
+Most users never write a single command. Here's what happens after you install:
+
+**Sessions 1–2:** Lore observes silently. It maps your files, tools, and recurring patterns.
+
+**Session 3+:** Lore starts whispering. Before each prompt, it injects the most relevant context — rules, decisions, preferences — your agent picks up automatically.
+
+**Over time:** When Lore spots a repeating pattern, it surfaces a *suggestion*. You approve it with a word:
+
+```
+You: "approve that rule"
+```
+
+Approved knowledge becomes permanent — shared across every future project, forever.
+
+> **You always stay in control.** Lore never adds knowledge to your store without your explicit approval. Suggestions stay *pending* until you say so. See [You Control Everything](#you-control-everything).
+
+---
 
 ## How It Works
 
@@ -90,53 +104,65 @@ No extra prompts. No copy-pasting context. Your agent just *knows*.
 Lore keeps two tiers of memory:
 
 - **Project memory** — per-repo session context (active files, recent errors). Short-term working memory.
-- **Shared knowledge** — cross-project facts (domain rules, architecture decisions, preferences). Long-term memory you build over time.
+- **Shared knowledge** — cross-project facts (domain rules, architecture decisions, preferences). Long-term memory that builds over time.
 
 Shared knowledge reaches your agent through three runtime delivery layers:
 
 | Layer | When | What |
-| --- | --- | --- |
-| **SessionStart** | Once per session | Top 5-15 stable facts, biased toward the current workspace |
-| **Whisper** | Before each prompt | 0-4 adaptive bullets — shared knowledge first, plus light high-confidence session nudges when useful |
+|---|---|---|
+| **SessionStart** | Once per session | Top 5–15 stable facts, biased toward your current workspace |
+| **Whisper** | Before each prompt | 0–4 adaptive bullets — most relevant shared knowledge, plus light high-confidence session nudges |
 | **MCP Recall** | On demand | Deep search across all shared knowledge |
 
-The **whisper system** is the key feature. It scores each knowledge entry against your current prompt using keyword overlap, tag matching, session affinity, and recent session signals such as files and tool usage — then applies repetition decay so it never nags. Shared knowledge stays the primary channel; high-confidence session nudges are secondary and only appear when helpful. If nothing is relevant, it says nothing. Your agent doesn't even know Lore is there.
+The **whisper system** is the key feature. It scores each knowledge entry against your current prompt using keyword overlap, tag matching, session affinity, and recent signals — then applies repetition decay so it never nags. If nothing is relevant, it says nothing. Your agent doesn't even know Lore is there.
 
-For a deeper dive into architecture, whisper scoring, and promotion workflow, see the [Design Overview](docs/design.md).
+For a deeper dive, see the [Design Overview](docs/design.md).
+
+---
 
 ## Real-World Examples
 
-**Cross-project recall** — You're in Project B, debugging a billing service. Lore whispers that three weeks ago in Project A, you decided Postgres is the source of truth for billing state — not Redis. Without Lore, you'd spend 30 minutes rediscovering that.
+**Cross-project recall** — You're in Project B debugging a billing service. Lore whispers that three weeks ago in Project A, you decided Postgres is the source of truth for billing state — not Redis. Without Lore, you'd spend 30 minutes rediscovering that.
 
-**Language switching** — You switch between a TypeScript API and a Python ML pipeline. Lore remembers your naming conventions for each, your preferred test frameworks, and the architecture boundaries between services. It whispers the right conventions for whichever project you're in.
+**Language switching** — You switch between a TypeScript API and a Python ML pipeline. Lore remembers your naming conventions, preferred test frameworks, and architecture boundaries for each. It whispers the right conventions for whichever project you're in.
 
-**Team onboarding** — A new team member onboards using your shared Codex setup. Your Lore knowledge store acts as living documentation — every rule, decision, and preference your agent already knows.
+**Team onboarding** — A new teammate onboards using your shared Codex setup. Your Lore knowledge store acts as living documentation — every rule, decision, and preference your agent already knows.
+
+---
 
 ## Shared Knowledge Kinds
 
 | Kind | What it captures | Example |
-| --- | --- | --- |
+|---|---|---|
 | `domain_rule` | Stable rules that rarely change | "All DB columns use snake_case" |
 | `architecture_fact` | Stack and platform assumptions | "PostgreSQL is source of truth" |
 | `decision_record` | Past decisions with rationale | "Chose Postgres over Mongo for ACID" |
 | `user_preference` | Coding style and tool choices | "Prefer named exports over default" |
 | `glossary_term` | Domain vocabulary | "SOR: Source of Record" |
 
+---
+
 ## You Control Everything
 
-Lore never adds shared knowledge automatically. Every entry requires your explicit approval.
+Lore **never** adds shared knowledge automatically. Every entry requires your explicit approval.
 
-- **Explicit promotion** — you promote knowledge manually via CLI. Auto-approved.
-- **Suggestions** — Lore can identify patterns across sessions and suggest candidates, but they enter as *pending* and require your `approve`.
-- **Demotion** — soft-delete with full audit trail. Nothing is ever hard-deleted.
-- **Inline correction** — tell your agent "that rule is outdated" mid-conversation, and it can demote the entry on the spot.
+| Path | How it works |
+|---|---|
+| **Inline approval** | Lore surfaces a suggestion mid-session — you say `approve` and it's done |
+| **Inline correction** | Tell your agent "that rule is outdated" — it demotes the entry on the spot |
+| **CLI promotion** | Power users can promote knowledge directly via CLI (no approval step needed) |
+| **Demotion** | Soft-delete with full audit trail — nothing is ever hard-deleted |
+
+Your knowledge store is yours. Lore earns its place by being useful, not by taking over.
+
+---
 
 ## MCP Recall Tools
 
 Your agent can proactively search Lore for deeper context:
 
 | Tool | Returns |
-| --- | --- |
+|---|---|
 | `lore.recall_rules` | Domain rules and glossary terms |
 | `lore.recall_architecture` | Architecture facts and platform assumptions |
 | `lore.recall_decisions` | Decision records with rationale |
@@ -144,14 +170,43 @@ Your agent can proactively search Lore for deeper context:
 
 Bundled with the plugin install — no separate MCP configuration needed.
 
+---
+
+## Managing Knowledge (Power Users)
+
+Most users let Lore learn on its own and approve suggestions as they come up. If you want to seed Lore immediately — with your team's standards, onboarding rules, or existing documentation — the CLI gives you direct control.
+
+### Promote a rule
+
+```bash
+lore promote \
+  --kind domain_rule \
+  --title "Use snake_case for DB columns" \
+  --content "All database columns must use snake_case naming across services and migrations." \
+  --tags "naming,database"
+```
+
+That entry is now in your shared knowledge store — every future session, across every project.
+
+### See what Lore knows
+
+```bash
+lore list-shared
+```
+
+### Remove outdated knowledge
+
+```bash
+lore demote <entry-id> --reason "migrated to camelCase"
+```
+
+> The `lore` CLI is available after running `install.sh`. If you installed manually, run `npm link` from `~/.codex/plugins/lore-source/` to register the command.
+
+---
+
 ## Installation
 
-Prerequisites:
-
-- Node.js 18+
-- npm
-
-Use this installer if you want Lore wired into Codex hooks, MCP, and Local Plugins.
+**Prerequisites:** Node.js 18+, npm
 
 ```bash
 git clone https://github.com/yimwoo/lore.git /tmp/lore && bash /tmp/lore/install.sh
@@ -190,12 +245,10 @@ Restart Codex after installing.
 
 ### Hooks
 
-Lore provides three Codex hooks for the Lore runtime:
-
 | Hook | Purpose |
-| --- | --- |
+|---|---|
 | `SessionStart` | Injects shared knowledge, initializes whisper state |
-| `UserPromptSubmit` | Whispers relevant shared knowledge and high-confidence session nudges before each prompt |
+| `UserPromptSubmit` | Whispers relevant shared knowledge before each prompt |
 | `Stop` (async) | Updates session context after each turn |
 
 Hooks are auto-discovered from `.codex/hooks.json` in your repo. For global use, copy to `~/.codex/hooks.json`.
@@ -212,7 +265,7 @@ All data lives locally on your machine:
   whisper-sessions/        Per-session whisper state
 ```
 
-Every state change writes to the ledger first, enabling crash recovery. Nothing is hard-deleted — demotion is the removal path, and the ledger preserves the full history.
+Every state change writes to the ledger first — crash-safe, nothing ever hard-deleted.
 
 ### Updating
 
@@ -220,7 +273,7 @@ Every state change writes to the ledger first, enabling crash recovery. Nothing 
 bash ~/.codex/plugins/lore-source/install.sh
 ```
 
-The installer detects an existing checkout and updates in place. Restart Codex after updating.
+---
 
 ## Development
 
@@ -244,18 +297,24 @@ src/
 tests/                26 test files, 317 tests
 ```
 
+---
+
 ## Design
 
 See the [Design Overview](docs/design.md) for architecture diagrams, whisper scoring details, promotion workflow, and storage layout.
 
+---
+
 ## Uninstalling
 
 ```bash
-rm -rf ~/.codex/plugins/lore-source          # remove plugin
-rm -rf ~/.lore                                # remove stored data (optional)
+rm -rf ~/.codex/plugins/lore-source     # remove plugin
+rm -rf ~/.lore                           # remove stored data (optional)
 ```
 
 Edit `~/.agents/plugins/marketplace.json` to remove the Lore entry, then restart Codex.
+
+---
 
 ## Contributing
 
