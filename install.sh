@@ -11,6 +11,39 @@ PLUGIN_NAME="lore"
 REPO_URL="https://github.com/yimwoo/lore"
 SOURCE_DIR="$HOME/.codex/plugins/lore-source"
 MARKETPLACE_FILE="$HOME/.agents/plugins/marketplace.json"
+CODEX_PLUGIN_CACHE_ROOT="$HOME/.codex/plugins/cache/codex-plugins/lore"
+
+refresh_codex_plugin_cache() {
+  local source_dir="$1"
+  local cache_root="${CODEX_PLUGIN_CACHE_ROOT}"
+  local refreshed=0
+
+  if [ ! -d "${source_dir}" ]; then
+    return 0
+  fi
+
+  if [ -d "${cache_root}" ]; then
+    for cache_dir in "${cache_root}"/*/; do
+      [ -d "${cache_dir}" ] || continue
+      echo "Refreshing Codex plugin cache at ${cache_dir}..."
+      mkdir -p "${cache_dir}"
+      rsync -a --delete --exclude '.git' "${source_dir}/" "${cache_dir}"
+      refreshed=1
+    done
+  fi
+
+  if [ "${refreshed}" -eq 0 ]; then
+    local seed_dir="${cache_root}/local"
+    echo "Seeding Codex plugin cache at ${seed_dir}..."
+    mkdir -p "${seed_dir}"
+    rsync -a --delete --exclude '.git' "${source_dir}/" "${seed_dir}/"
+    refreshed=1
+  fi
+
+  if [ "${refreshed}" -eq 1 ]; then
+    echo "  Codex plugin cache refreshed."
+  fi
+}
 
 LOCAL_MODE=false
 for arg in "$@"; do
@@ -32,10 +65,12 @@ done
 # Determine plugin path
 if [ "$LOCAL_MODE" = true ]; then
   PLUGIN_PATH="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-  MARKETPLACE_FILE=".agents/plugins/marketplace.json"
+  MARKETPLACE_FILE="${PLUGIN_PATH}/.agents/plugins/marketplace.json"
+  MARKETPLACE_PLUGIN_PATH="${PLUGIN_PATH}"
   echo "Local mode: using $PLUGIN_PATH as plugin source"
 else
   PLUGIN_PATH="$SOURCE_DIR"
+  MARKETPLACE_PLUGIN_PATH="./.codex/plugins/lore-source"
 
   if [ -d "$SOURCE_DIR/.git" ]; then
     echo "Updating existing source checkout at $SOURCE_DIR..."
@@ -60,49 +95,79 @@ cd - > /dev/null
 MARKETPLACE_DIR="$(dirname "$MARKETPLACE_FILE")"
 mkdir -p "$MARKETPLACE_DIR"
 
-if [ -f "$MARKETPLACE_FILE" ]; then
-  # Check if lore entry already exists
-  if command -v jq &> /dev/null; then
-    HAS_ECHO=$(jq -r '.plugins[]? | select(.name == "lore") | .name' "$MARKETPLACE_FILE" 2>/dev/null || echo "")
-    if [ "$HAS_ECHO" = "lore" ]; then
-      echo "Marketplace entry for lore already exists. Updating path..."
-      TEMP_FILE=$(mktemp)
-      jq --arg path "$PLUGIN_PATH" '(.plugins[] | select(.name == "lore")).source.path = $path' "$MARKETPLACE_FILE" > "$TEMP_FILE"
-      mv "$TEMP_FILE" "$MARKETPLACE_FILE"
-    else
-      echo "Adding lore to existing marketplace..."
-      TEMP_FILE=$(mktemp)
-      jq --arg path "$PLUGIN_PATH" '.plugins += [{"name":"lore","source":{"source":"local","path":$path},"policy":{"installation":"AVAILABLE","authentication":"ON_INSTALL"},"category":"Productivity"}]' "$MARKETPLACE_FILE" > "$TEMP_FILE"
-      mv "$TEMP_FILE" "$MARKETPLACE_FILE"
-    fi
-  else
-    echo ""
-    echo "WARNING: jq not found. Cannot auto-update marketplace.json."
-    echo "Please manually add the lore entry to $MARKETPLACE_FILE"
-    echo "(See README.md for the marketplace entry format)"
-  fi
-else
-  echo "Creating marketplace file at $MARKETPLACE_FILE..."
-  cat > "$MARKETPLACE_FILE" << MARKETPLACE
-{
-  "name": "local",
-  "plugins": [
-    {
-      "name": "lore",
-      "source": {
-        "source": "local",
-        "path": "$PLUGIN_PATH"
-      },
-      "policy": {
-        "installation": "AVAILABLE",
-        "authentication": "ON_INSTALL"
-      },
-      "category": "Productivity"
-    }
-  ]
-}
-MARKETPLACE
+PLUGIN_MANIFEST="${PLUGIN_PATH}/.codex-plugin/plugin.json"
+if [ ! -f "$PLUGIN_MANIFEST" ]; then
+  echo "Error: ${PLUGIN_MANIFEST} not found." >&2
+  exit 1
 fi
+
+python3 -c "
+import json, sys, os
+
+manifest_path = sys.argv[1]
+dest_path = sys.argv[2]
+plugin_source_path = sys.argv[3]
+owner_name = os.environ.get('USER', 'unknown')
+
+with open(manifest_path) as f:
+    manifest = json.load(f)
+
+lore_entry = {
+    'name': manifest['name'],
+    'description': manifest['description'],
+    'version': manifest['version'],
+    'author': manifest.get('author', {'name': owner_name}),
+    'source': {
+        'source': 'local',
+        'path': plugin_source_path,
+    },
+    'policy': {
+        'installation': 'AVAILABLE',
+        'authentication': 'ON_INSTALL',
+    },
+    'category': 'Productivity',
+}
+
+if manifest.get('interface'):
+    lore_entry['interface'] = manifest['interface']
+
+if os.path.exists(dest_path):
+    with open(dest_path) as f:
+        dest = json.load(f)
+else:
+    dest = {
+        'name': 'codex-plugins',
+        'description': 'Codex plugin marketplace',
+        'owner': {'name': owner_name},
+        'interface': {'displayName': 'Local Plugins'},
+        'plugins': [],
+    }
+
+dest.setdefault('name', 'codex-plugins')
+dest.setdefault('description', 'Codex plugin marketplace')
+dest.setdefault('owner', {'name': owner_name})
+dest.setdefault('interface', {'displayName': 'Local Plugins'})
+dest.setdefault('plugins', [])
+
+updated = False
+for index, plugin in enumerate(dest['plugins']):
+    if plugin.get('name') == 'lore':
+        dest['plugins'][index] = lore_entry
+        updated = True
+        break
+
+if not updated:
+    dest['plugins'].append(lore_entry)
+
+with open(dest_path, 'w') as f:
+    json.dump(dest, f, indent=2)
+    f.write('\n')
+
+action = 'Updated' if updated else 'Added'
+print(f'{action} Lore plugin entry (version {lore_entry[\"version\"]})')
+" "$PLUGIN_MANIFEST" "$MARKETPLACE_FILE" "$MARKETPLACE_PLUGIN_PATH"
+
+refresh_codex_plugin_cache "$PLUGIN_PATH"
 
 echo ""
 echo "Lore installed successfully."

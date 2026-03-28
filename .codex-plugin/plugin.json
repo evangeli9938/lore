@@ -2,11 +2,23 @@
   "name": "lore",
   "version": "0.1.0",
   "description": "Lore — shared cross-project knowledge with SessionStart injection, MCP recall tools, and advisory hints.",
+  "author": {
+    "name": "yimwoo"
+  },
+  "homepage": "https://github.com/yimwoo/lore",
+  "repository": "https://github.com/yimwoo/lore",
+  "license": "MIT",
+  "keywords": ["lore", "codex", "memory", "knowledge", "mcp"],
   "skills": "./skills/",
   "mcpServers": "./.mcp.json",
   "interface": {
     "displayName": "Lore",
     "shortDescription": "Cross-project shared knowledge for Codex",
-    "category": "Productivity"
+    "longDescription": "Use Lore to persist domain rules, architecture facts, decisions, glossary terms, and coding preferences across projects and sessions.",
+    "developerName": "Yiming Wu",
+    "category": "Productivity",
+    "capabilities": ["Interactive", "Read", "Write"],
+    "defaultPrompt": "Recall and apply shared project knowledge, rules, and decisions with Lore",
+    "websiteURL": "https://github.com/yimwoo/lore"
   }
 }

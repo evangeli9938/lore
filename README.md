@@ -173,7 +173,7 @@ lore reject <entry-id> --reason "..."     # reject with reason
 
 - Node.js 18+
 - npm
-- jq (optional, for auto-updating marketplace.json)
+- python3
 
 ### One-Line Install
 
@@ -181,7 +181,7 @@ lore reject <entry-id> --reason "..."     # reject with reason
 git clone https://github.com/yimwoo/lore.git /tmp/lore && bash /tmp/lore/install.sh
 ```
 
-This clones Lore to `~/.codex/plugins/lore-source/`, runs `npm install`, and registers a marketplace entry in `~/.agents/plugins/marketplace.json`.
+This clones Lore to `~/.codex/plugins/lore-source/`, runs `npm install`, registers a marketplace entry in `~/.agents/plugins/marketplace.json`, and refreshes Codex's local plugin cache.
 
 ### For Contributors
 
