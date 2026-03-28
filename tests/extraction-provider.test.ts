@@ -12,6 +12,7 @@ import {
   type ConsolidationInput,
   type ConsolidationProvider,
 } from "../src/extraction/consolidation-provider";
+import { CodexExtractionProvider } from "../src/extraction/codex-extraction-provider";
 import type { SharedKnowledgeEntry } from "../src/shared/types";
 import { contentHash } from "../src/shared/validators";
 
@@ -116,5 +117,105 @@ describe("provider seams", () => {
 
     expect(result.entries).toEqual(entries);
     expect(calls).toEqual([input]);
+  });
+});
+
+describe("CodexExtractionProvider auth warnings", () => {
+  it("warns once when the Responses API returns 401", async () => {
+    const warnings: string[] = [];
+    const writes: string[] = [];
+    const provider = new CodexExtractionProvider({
+      readFile: async (path: string): Promise<string> => {
+        if (path.endsWith("/.codex/auth.json")) {
+          return JSON.stringify({ OPENAI_API_KEY: "sk-test" });
+        }
+        if (path.endsWith("/.codex/config.toml")) {
+          return 'base_url = "https://api.example.com/v1"\nmodel = "gpt-5.4"\n';
+        }
+        throw new Error("missing");
+      },
+      writeFile: async (path: string, content: string): Promise<void> => {
+        writes.push(`${path}:${content}`);
+      },
+      mkdir: async (): Promise<string | undefined> => undefined,
+      fetch: async (): Promise<Response> =>
+        new Response(JSON.stringify({ error: "unauthorized" }), { status: 401 }),
+      now: () => "2026-03-28T21:00:00.000Z",
+      warn: (message: string): void => {
+        warnings.push(message);
+      },
+    });
+
+    const result = await provider.extractCandidates(makeTurnArtifact());
+
+    expect(result).toEqual([]);
+    expect(warnings).toHaveLength(1);
+    expect(warnings[0]).toContain("401");
+    expect(warnings[0]).toContain("API key");
+    expect(writes).toHaveLength(1);
+    expect(writes[0]).toContain("lastAuthWarningAt");
+  });
+
+  it("rate-limits repeated auth warnings inside the cooldown window", async () => {
+    const warnings: string[] = [];
+    const writes: string[] = [];
+    const provider = new CodexExtractionProvider({
+      readFile: async (path: string): Promise<string> => {
+        if (path.endsWith("/.codex/auth.json")) {
+          return JSON.stringify({ OPENAI_API_KEY: "sk-test" });
+        }
+        if (path.endsWith("/.codex/config.toml")) {
+          return 'base_url = "https://api.example.com/v1"\n';
+        }
+        if (path.endsWith("/.lore/auth-warning-state.json")) {
+          return JSON.stringify({ lastAuthWarningAt: "2026-03-28T20:30:00.000Z" });
+        }
+        throw new Error("missing");
+      },
+      writeFile: async (path: string, content: string): Promise<void> => {
+        writes.push(`${path}:${content}`);
+      },
+      mkdir: async (): Promise<string | undefined> => undefined,
+      fetch: async (): Promise<Response> =>
+        new Response(JSON.stringify({ error: "forbidden" }), { status: 403 }),
+      now: () => "2026-03-28T21:00:00.000Z",
+      warn: (message: string): void => {
+        warnings.push(message);
+      },
+    });
+
+    const result = await provider.extractCandidates(makeTurnArtifact());
+
+    expect(result).toEqual([]);
+    expect(warnings).toHaveLength(0);
+    expect(writes).toHaveLength(0);
+  });
+
+  it("does not warn for non-auth API failures", async () => {
+    const warnings: string[] = [];
+    const provider = new CodexExtractionProvider({
+      readFile: async (path: string): Promise<string> => {
+        if (path.endsWith("/.codex/auth.json")) {
+          return JSON.stringify({ OPENAI_API_KEY: "sk-test" });
+        }
+        if (path.endsWith("/.codex/config.toml")) {
+          return 'base_url = "https://api.example.com/v1"\n';
+        }
+        throw new Error("missing");
+      },
+      writeFile: async (): Promise<void> => undefined,
+      mkdir: async (): Promise<string | undefined> => undefined,
+      fetch: async (): Promise<Response> =>
+        new Response(JSON.stringify({ error: "server" }), { status: 500 }),
+      now: () => "2026-03-28T21:00:00.000Z",
+      warn: (message: string): void => {
+        warnings.push(message);
+      },
+    });
+
+    const result = await provider.extractCandidates(makeTurnArtifact());
+
+    expect(result).toEqual([]);
+    expect(warnings).toHaveLength(0);
   });
 });

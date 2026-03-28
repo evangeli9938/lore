@@ -1,3 +1,6 @@
+import { readFile } from "node:fs/promises";
+import { homedir } from "node:os";
+import { join } from "node:path";
 import { createInterface } from "node:readline";
 
 import { FileSharedStore } from "../core/file-shared-store";
@@ -23,6 +26,50 @@ type SessionMetadata = {
 type SessionStartDependencies = {
   config?: ReturnType<typeof resolveConfig>;
   consolidate?: () => Promise<void>;
+  warn?: (message: string) => void;
+};
+
+type LoreAuthSummary = {
+  authMode?: string;
+  hasApiKey: boolean;
+};
+
+const writeWarning = (message: string): void => {
+  process.stderr.write(`${message}\n`);
+};
+
+const getCodexAuthPath = (): string => join(homedir(), ".codex", "auth.json");
+
+const readLoreAuthSummary = async (): Promise<LoreAuthSummary> => {
+  try {
+    const raw = await readFile(getCodexAuthPath(), "utf8");
+    const parsed = JSON.parse(raw) as Record<string, unknown>;
+
+    return {
+      authMode: typeof parsed.auth_mode === "string" ? parsed.auth_mode : undefined,
+      hasApiKey:
+        typeof parsed.OPENAI_API_KEY === "string" &&
+        parsed.OPENAI_API_KEY.trim().length > 0,
+    };
+  } catch {
+    return {
+      authMode: undefined,
+      hasApiKey: false,
+    };
+  }
+};
+
+const warnIfLlmIngestionUnavailable = async (
+  warn: (message: string) => void,
+): Promise<void> => {
+  const auth = await readLoreAuthSummary();
+  if (auth.authMode !== "chatgpt" || auth.hasApiKey) {
+    return;
+  }
+
+  warn(
+    'Lore reminder: LLM ingestion is inactive because Codex auth_mode="chatgpt" has no OPENAI_API_KEY. Shared knowledge still works, but automatic extraction needs API-key-backed Codex config.',
+  );
 };
 
 const deriveProjectId = (cwd: string): string => {
@@ -77,6 +124,7 @@ export const runSessionStart = async (
   dependencies?: SessionStartDependencies,
 ): Promise<{ additionalContext: string }> => {
   const config = dependencies?.config ?? resolveConfig();
+  const warn = dependencies?.warn ?? writeWarning;
 
   let metadata: SessionMetadata = {};
   const input = stdinData ?? (await readStdin());
@@ -156,6 +204,8 @@ export const runSessionStart = async (
     } catch {
       // Consolidation is advisory only at startup.
     }
+
+    await warnIfLlmIngestionUnavailable(warn);
 
     const result = await buildSessionStartContext({
       store: sharedStore,
