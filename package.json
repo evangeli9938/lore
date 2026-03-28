@@ -1,8 +1,37 @@
 {
-  "name": "lore",
-  "version": "1.2.0",
-  "private": true,
+  "name": "codex-lore",
+  "version": "1.2.1",
+  "description": "Persistent cross-project memory for Codex — rules, decisions, and context that follow you.",
+  "license": "MIT",
+  "homepage": "https://github.com/yimwoo/lore",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/yimwoo/lore.git"
+  },
+  "bugs": {
+    "url": "https://github.com/yimwoo/lore/issues"
+  },
+  "author": "Yiming Wu",
   "type": "module",
+  "bin": {
+    "lore": "./scripts/cli.ts"
+  },
+  "files": [
+    ".codex-plugin/",
+    ".mcp.json",
+    "assets/",
+    "hooks/",
+    "install.sh",
+    "README.md",
+    "CHANGELOG.md",
+    "skills/",
+    "src/",
+    "scripts/cli.ts",
+    "scripts/demo.ts"
+  ],
+  "engines": {
+    "node": ">=18"
+  },
   "scripts": {
     "cli": "node --import tsx scripts/cli.ts",
     "demo": "node --import tsx scripts/demo.ts",

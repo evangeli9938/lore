@@ -143,8 +143,8 @@ Bundled with the plugin install — no separate MCP configuration needed.
 ## CLI Reference
 
 ```bash
-# Set up a shell alias
-alias lore='node --import tsx ~/.codex/plugins/lore-source/src/cli.ts'
+# Install the global CLI
+npm install -g codex-lore
 
 # Promote knowledge
 lore promote --kind domain_rule --title "..." --content "..." --tags "..."
@@ -181,6 +181,14 @@ git clone https://github.com/yimwoo/lore.git /tmp/lore && bash /tmp/lore/install
 ```
 
 This clones Lore to `~/.codex/plugins/lore-source/`, runs `npm install`, registers a marketplace entry in `~/.agents/plugins/marketplace.json`, and refreshes Codex's local plugin cache.
+
+### Global CLI Install
+
+```bash
+npm install -g codex-lore
+```
+
+This installs the `lore` command globally so you can promote, inspect, and manage shared knowledge from any shell.
 
 ### For Contributors
 

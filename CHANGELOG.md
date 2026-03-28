@@ -1,5 +1,17 @@
 # Changelog
 
+## [1.2.1] - 2026-03-28
+
+### Added
+
+- npm packaging metadata for the global CLI package `codex-lore`.
+
+### Changed
+
+- Renamed the npm package from `lore` to `codex-lore` so it can be published without colliding with the existing `lore` package on npm.
+- Added a global `lore` binary via the package `bin` field so users can run `npm install -g codex-lore` and then invoke `lore` directly.
+- Added npm publish metadata (`description`, `license`, `repository`, `bugs`, `author`, `engines`, and `files`) and updated the README install instructions for the global CLI flow.
+
 ## [1.2.0] - 2026-03-28
 
 ### Added
