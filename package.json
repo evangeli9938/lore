@@ -14,12 +14,13 @@
   "author": "Yiming Wu",
   "type": "module",
   "bin": {
-    "lore": "./scripts/cli.ts"
+    "lore": "./bin/lore.js"
   },
   "files": [
     ".codex-plugin/",
     ".mcp.json",
     "assets/",
+    "bin/",
     "hooks/",
     "install.sh",
     "README.md",
