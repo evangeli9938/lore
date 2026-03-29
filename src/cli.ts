@@ -6,6 +6,7 @@ import type { Readable, Writable } from "node:stream";
 
 import { createLoreApp } from "./app";
 import { parseRawSessionEvent } from "./bridge/events";
+import { aggregateDashboard, renderDashboardText } from "./core/dashboard-aggregator";
 import { FileMemoryStore } from "./core/memory-store";
 import { FileSharedStore } from "./core/file-shared-store";
 import { FileApprovalStore } from "./promotion/approval-store";
@@ -49,6 +50,7 @@ Commands:
   reject <id>                    Reject a pending suggestion
   import <file>                  Import knowledge from a convention file
   suggest                        Show observation/debug info for the retired suggestion path
+  dashboard                      Show knowledge base overview and health
   help                           Show this help message
 
 Options:
@@ -65,6 +67,9 @@ Options:
   --tag-prefix <prefix>          Add a tag prefix to all imported entries
   --dry-run                      Show what would be imported without writing
   --json                         Print JSON output
+  --tag <tag>                    Filter by tag
+  --stale                        Show entries not seen in 60+ days
+  --contradictions               Show entries with contradictions flagged
 `;
 
 type ParsedArgs = {
@@ -355,7 +360,7 @@ const runListShared = async (
   options: Record<string, string | boolean>,
   streams: CliStreams,
 ) => {
-  const { sharedStore } = createPromoter(options);
+  const { sharedStore, config } = createPromoter(options);
 
   const kind =
     typeof options.kind === "string" && isSharedKnowledgeKind(options.kind)
@@ -367,10 +372,29 @@ const runListShared = async (
       ? (options.status as SharedKnowledgeEntry["approvalStatus"])
       : undefined;
 
-  const entries = await sharedStore.list({
+  let entries = await sharedStore.list({
     kind,
     approvalStatus: status,
   });
+
+  if (typeof options.tag === "string") {
+    const tagValue = options.tag;
+    entries = entries.filter((e) => e.tags.includes(tagValue));
+  }
+
+  if (options.stale === true) {
+    const threshold = config.staleDaysThreshold;
+    const now = Date.now();
+    entries = entries.filter((e) => {
+      const diffMs = now - new Date(e.lastSeenAt).getTime();
+      const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+      return diffDays >= threshold;
+    });
+  }
+
+  if (options.contradictions === true) {
+    entries = entries.filter((e) => (e.contradictionCount ?? 0) > 0);
+  }
 
   const output =
     options.json === true
@@ -649,6 +673,32 @@ const runImport = async (
   await writeOutput(streams.stdout, renderImportSummary(results, absolutePath, approveAll));
 };
 
+const runDashboard = async (
+  options: Record<string, string | boolean>,
+  streams: CliStreams,
+): Promise<void> => {
+  const { sharedStore, approvalStore, config } = createPromoter(options);
+
+  const approvedEntries = await sharedStore.list({ approvalStatus: "approved" });
+  const pendingEntries = await sharedStore.list({ approvalStatus: "pending" });
+  const rejectedEntries = await sharedStore.list({ approvalStatus: "rejected" });
+  const demotedEntries = await sharedStore.list({ approvalStatus: "demoted" });
+  const entries = [...approvedEntries, ...pendingEntries, ...rejectedEntries, ...demotedEntries];
+
+  const ledgerEntries = await approvalStore.readAll();
+
+  const data = aggregateDashboard(entries, ledgerEntries, {
+    staleDaysThreshold: config.staleDaysThreshold,
+    now: new Date().toISOString(),
+  });
+
+  const output = options.json === true
+    ? JSON.stringify(data, null, 2)
+    : renderDashboardText(data);
+
+  await writeOutput(streams.stdout, output);
+};
+
 export const runCli = async (
   argv: string[],
   streams: CliStreams = {
@@ -802,6 +852,15 @@ export const runCli = async (
       }
       case "suggest":
         await runSuggest(parsed.options, streams);
+        log("info", "cli.command_succeeded", {
+          command: parsed.command,
+        }, {
+          ok: true,
+          summary: "Lore CLI command completed successfully.",
+        });
+        return 0;
+      case "dashboard":
+        await runDashboard(parsed.options, streams);
         log("info", "cli.command_succeeded", {
           command: parsed.command,
         }, {

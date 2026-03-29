@@ -392,3 +392,40 @@ export const whisperLabelMap: Record<SharedKnowledgeKind, string> = {
   user_preference: "preference",
   glossary_term: "term",
 };
+
+// --- Dashboard Types ---
+
+export type KindStatusCounts = {
+  kind: SharedKnowledgeKind;
+  approved: number;
+  pending: number;
+  rejected: number;
+  demoted: number;
+};
+
+export type TagCoverage = {
+  tag: string;
+  entryCount: number;
+  strength: "strong" | "moderate" | "weak";
+};
+
+export type ActivityPeriod = {
+  label: string;
+  promotes: number;
+  approvals: number;
+  rejections: number;
+  demotions: number;
+};
+
+export type HealthIndicator =
+  | { type: "stale_entries"; count: number; thresholdDays: number }
+  | { type: "contradictions"; count: number };
+
+export type DashboardData = {
+  totalEntries: number;
+  kindCounts: KindStatusCounts[];
+  tagCoverage: TagCoverage[];
+  activity: ActivityPeriod[];
+  health: HealthIndicator[];
+  generatedAt: string;
+};
