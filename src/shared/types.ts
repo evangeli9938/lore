@@ -221,6 +221,13 @@ export type ApprovalLedgerEntry = {
   timestamp: string;
 };
 
+export const signalStrengths = ["strong", "medium", "weak"] as const;
+
+export type SignalStrength = (typeof signalStrengths)[number];
+
+export const isSignalStrength = (value: string): value is SignalStrength =>
+  signalStrengths.includes(value as SignalStrength);
+
 export type ObservationEntry = {
   sessionId: string;
   projectId: string;
@@ -229,6 +236,7 @@ export type ObservationEntry = {
   confidence: number;
   timestamp: string;
   contextKey?: string;
+  signalStrength?: SignalStrength;
 };
 
 export type DraftCandidate = {
@@ -243,6 +251,7 @@ export type DraftCandidate = {
   turnIndex: number;
   timestamp: string;
   tags: string[];
+  signalStrength?: SignalStrength;
 };
 
 export type ConsolidationState = {
