@@ -91,6 +91,16 @@ cd "$PLUGIN_PATH"
 npm install --silent
 cd - > /dev/null
 
+# Make the `lore` CLI globally available
+echo "Linking lore CLI..."
+cd "$PLUGIN_PATH"
+npm link --silent 2>/dev/null || {
+  echo "  Note: npm link failed (you may need sudo). You can manually run:"
+  echo "    cd $PLUGIN_PATH && npm link"
+  echo "  or use: npm run cli -- <command> as a fallback."
+}
+cd - > /dev/null
+
 # Register in marketplace
 MARKETPLACE_DIR="$(dirname "$MARKETPLACE_FILE")"
 mkdir -p "$MARKETPLACE_DIR"
@@ -167,14 +177,12 @@ echo ""
 echo "Next steps:"
 echo "  1. Restart Codex"
 echo "  2. Open the plugin directory, switch to Local Plugins, and install Lore"
-echo "  3. MCP recall tools are bundled with the plugin install"
-echo "  4. Start promoting knowledge:"
 echo ""
-echo "     cd $PLUGIN_PATH"
-echo "     npm run cli -- promote \\"
-echo "       --kind domain_rule \\"
-echo "       --title \"Use snake_case\" \\"
-echo "       --content \"All DB columns must use snake_case.\""
+echo "Get started:"
+echo "  lore init                    # Scan project and import existing convention files"
+echo "  lore dashboard               # See your knowledge base overview"
+echo "  lore import CLAUDE.md        # Import a specific convention file"
+echo "  lore promote --kind domain_rule --title \"Use snake_case\" --content \"All DB columns use snake_case.\""
 echo ""
 echo "Plugin source: $PLUGIN_PATH"
 echo "Marketplace:   $MARKETPLACE_FILE"

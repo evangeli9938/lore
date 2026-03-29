@@ -16,7 +16,7 @@ Restart Codex, open **Local Plugins**, find **Lore**, and click **Install**.
 
 **That's it. Start coding. Lore starts learning.**
 
-> Already have a `CLAUDE.md`, `.cursorrules`, or `CONVENTIONS.md`? Run `lore init` to import your existing rules in seconds. See [Cold Start](#cold-start-instant-setup).
+> Already have a `CLAUDE.md`, `.cursorrules`, or `CONVENTIONS.md`? Run `lore init` in your project directory to import your existing rules in seconds. See [Cold Start](#cold-start-instant-setup).
 
 ---
 
@@ -209,7 +209,7 @@ lore history <id>                           # Trace supersession chain
 lore demote <entry-id> --reason "migrated to camelCase"
 ```
 
-> The `lore` CLI is available after running `install.sh`. If you installed manually, run `npm link` from `~/.codex/plugins/lore-source/` to register the command.
+> The `lore` CLI is globally available after running `install.sh` (via `npm link`). If you installed manually, run `npm link` from `~/.codex/plugins/lore-source/` to register the command.
 
 ---
 
@@ -221,7 +221,7 @@ lore demote <entry-id> --reason "migrated to camelCase"
 git clone https://github.com/yimwoo/lore.git /tmp/lore && bash /tmp/lore/install.sh
 ```
 
-This clones Lore to `~/.codex/plugins/lore-source/`, runs `npm install`, registers a marketplace entry in `~/.agents/plugins/marketplace.json`, and refreshes Codex's local plugin cache.
+This clones Lore to `~/.codex/plugins/lore-source/`, runs `npm install`, links the `lore` CLI globally (via `npm link`), registers a marketplace entry in `~/.agents/plugins/marketplace.json`, and refreshes Codex's local plugin cache.
 
 ### For Contributors
 
@@ -237,6 +237,7 @@ bash install.sh --local
 git clone https://github.com/yimwoo/lore.git ~/.codex/plugins/lore-source
 cd ~/.codex/plugins/lore-source
 npm install
+npm link          # makes `lore` available on your PATH
 ```
 
 Then add a marketplace entry to `~/.agents/plugins/marketplace.json`:
