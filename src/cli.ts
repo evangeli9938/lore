@@ -1,6 +1,6 @@
-import { mkdir, rm } from "node:fs/promises";
+import { mkdir, readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { basename, join, resolve } from "node:path";
 import { createInterface } from "node:readline";
 import type { Readable, Writable } from "node:stream";
 
@@ -10,6 +10,9 @@ import { FileMemoryStore } from "./core/memory-store";
 import { FileSharedStore } from "./core/file-shared-store";
 import { FileApprovalStore } from "./promotion/approval-store";
 import { Promoter } from "./promotion/promoter";
+import type { PromoteImportResult } from "./promotion/promoter";
+import { parseMarkdownEntries } from "./core/markdown-parser";
+import type { ImportCandidate } from "./core/markdown-parser";
 import { ObservationLogReader } from "./promotion/observation-log";
 import { contentHash } from "./shared/validators";
 import { resolveConfig } from "./config";
@@ -44,6 +47,7 @@ Commands:
   demote <id>                    Soft-delete a shared knowledge entry
   approve <id>                   Approve a pending suggestion
   reject <id>                    Reject a pending suggestion
+  import <file>                  Import knowledge from a convention file
   suggest                        Show observation/debug info for the retired suggestion path
   help                           Show this help message
 
@@ -57,6 +61,9 @@ Options:
   --tags <tags>                  Comma-separated tags
   --status <status>              Filter by approval status
   --reason <reason>              Reason for demote
+  --approve-all                  Approve all imported entries immediately
+  --tag-prefix <prefix>          Add a tag prefix to all imported entries
+  --dry-run                      Show what would be imported without writing
   --json                         Print JSON output
 `;
 
@@ -502,6 +509,146 @@ const runSuggest = async (
   await writeOutput(streams.stdout, output);
 };
 
+type ImportResult = {
+  candidate: ImportCandidate;
+  outcome: PromoteImportResult;
+};
+
+const importCandidates = async (
+  promoter: Promoter,
+  candidates: ImportCandidate[],
+  sourceFilePath: string,
+  approveAll: boolean,
+): Promise<ImportResult[]> => {
+  const results: ImportResult[] = [];
+
+  for (const candidate of candidates) {
+    const outcome = await promoter.promoteImport({
+      kind: candidate.inferredKind,
+      title: candidate.title,
+      content: candidate.content,
+      tags: candidate.tags,
+      sourceFilePath: basename(sourceFilePath),
+      approveAll,
+    });
+
+    results.push({ candidate, outcome });
+  }
+
+  return results;
+};
+
+const renderImportSummary = (
+  results: ImportResult[],
+  filePath: string,
+  approveAll: boolean,
+): string => {
+  const created = results.filter((r) => r.outcome.ok && r.outcome.action === "created");
+  const skipped = results.filter((r) => r.outcome.ok && r.outcome.action === "skipped");
+  const failed = results.filter((r) => !r.outcome.ok);
+
+  const kindCounts: Record<string, number> = {};
+  for (const r of created) {
+    if (r.outcome.ok) {
+      const k = r.outcome.entry.kind;
+      kindCounts[k] = (kindCounts[k] ?? 0) + 1;
+    }
+  }
+
+  const kindBreakdown = Object.entries(kindCounts)
+    .map(([k, n]) => `${n} ${k.replace(/_/g, " ")}${n === 1 ? "" : "s"}`)
+    .join(", ");
+
+  const status = approveAll ? "approved" : "pending";
+  const lines = [
+    `Imported ${created.length} entries from ${basename(filePath)} (${kindBreakdown}).`,
+    `Status: ${status}.`,
+  ];
+
+  if (skipped.length > 0) {
+    lines.push(`Skipped ${skipped.length} duplicate${skipped.length === 1 ? "" : "s"}.`);
+  }
+  if (failed.length > 0) {
+    lines.push(`Failed: ${failed.length} entr${failed.length === 1 ? "y" : "ies"} (validation errors).`);
+    for (const f of failed) {
+      if (!f.outcome.ok) {
+        lines.push(`  - "${f.candidate.title}": ${f.outcome.reason}`);
+      }
+    }
+  }
+
+  if (!approveAll && created.length > 0) {
+    lines.push(`Review with: lore list-shared --status pending`);
+  }
+
+  return lines.join("\n");
+};
+
+const renderDryRunOutput = (
+  candidates: ImportCandidate[],
+  filePath: string,
+): string => {
+  const lines = [
+    `Dry run: ${candidates.length} entries would be imported from ${basename(filePath)}`,
+    "",
+  ];
+
+  for (let i = 0; i < candidates.length; i++) {
+    const c = candidates[i]!;
+    const preview = c.content.length > 80
+      ? `${c.content.slice(0, 77)}...`
+      : c.content;
+    lines.push(`${i + 1}. [${c.inferredKind}] ${c.title}`);
+    lines.push(`   ${preview}`);
+    if (c.tags.length > 0) {
+      lines.push(`   tags: ${c.tags.join(", ")}`);
+    }
+  }
+
+  return lines.join("\n");
+};
+
+const runImport = async (
+  options: Record<string, string | boolean>,
+  streams: CliStreams,
+  filePath: string,
+): Promise<void> => {
+  const absolutePath = resolve(filePath);
+  const raw = await readFile(absolutePath, "utf8");
+
+  const kindOverride =
+    typeof options.kind === "string" && isSharedKnowledgeKind(options.kind)
+      ? (options.kind as SharedKnowledgeKind)
+      : undefined;
+  const tagPrefix =
+    typeof options["tag-prefix"] === "string" ? options["tag-prefix"] : undefined;
+
+  const candidates = parseMarkdownEntries(raw, { kindOverride, tagPrefix });
+
+  if (candidates.length === 0) {
+    await writeOutput(streams.stdout, "No importable entries found in file.");
+    return;
+  }
+
+  const approveAll = options["approve-all"] === true;
+  const dryRun = options["dry-run"] === true;
+
+  if (dryRun) {
+    await writeOutput(streams.stdout, renderDryRunOutput(candidates, absolutePath));
+    return;
+  }
+
+  const { promoter } = createPromoter(options);
+  const results = await importCandidates(
+    promoter,
+    candidates,
+    absolutePath,
+    approveAll,
+  );
+
+  await writeOutput(streams.stdout, renderImportSummary(results, absolutePath, approveAll));
+};
+
 export const runCli = async (
   argv: string[],
   streams: CliStreams = {
@@ -633,6 +780,18 @@ export const runCli = async (
         const rejectId = parsed.positional[0];
         if (!rejectId) throw new Error("Missing entry ID for reject command.");
         await runReject(parsed.options, streams, rejectId);
+        log("info", "cli.command_succeeded", {
+          command: parsed.command,
+        }, {
+          ok: true,
+          summary: "Lore CLI command completed successfully.",
+        });
+        return 0;
+      }
+      case "import": {
+        const importPath = parsed.positional[0];
+        if (!importPath) throw new Error("Missing file path for import command.");
+        await runImport(parsed.options, streams, importPath);
         log("info", "cli.command_succeeded", {
           command: parsed.command,
         }, {

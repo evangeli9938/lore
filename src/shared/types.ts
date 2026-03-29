@@ -113,12 +113,13 @@ export const approvalStatuses = [
 
 export type ApprovalStatus = (typeof approvalStatuses)[number];
 
-export type PromotionSource = "explicit" | "suggested";
+export type PromotionSource = "explicit" | "suggested" | "imported";
 
 export const approvalSources = [
   "manual",
   "implicit:user_stated",
   "auto:convergence",
+  "import:user_approved",
 ] as const;
 
 export type ApprovalSource = (typeof approvalSources)[number];
