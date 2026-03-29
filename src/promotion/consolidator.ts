@@ -10,6 +10,8 @@ import type {
   ConsolidationProvider,
   ConsolidationObservation,
 } from "../extraction/consolidation-provider";
+import { classifyConflict } from "./conflict-detector";
+import type { FileConflictStore } from "./conflict-store";
 import type { DraftCandidate, SharedKnowledgeEntry } from "../shared/types";
 import {
   createRunId,
@@ -25,6 +27,7 @@ type ConsolidatorOptions = {
   sharedStore: SharedKnowledgeStore;
   approvalStore: FileApprovalStore;
   provider: ConsolidationProvider;
+  conflictStore?: FileConflictStore;
   statePath: string;
   now?: () => string;
 };
@@ -249,6 +252,7 @@ export class Consolidator {
   private readonly sharedStore: SharedKnowledgeStore;
   private readonly approvalStore: FileApprovalStore;
   private readonly provider: ConsolidationProvider;
+  private readonly conflictStore: FileConflictStore | undefined;
   private readonly statePath: string;
   private readonly now: () => string;
 
@@ -258,8 +262,56 @@ export class Consolidator {
     this.sharedStore = options.sharedStore;
     this.approvalStore = options.approvalStore;
     this.provider = options.provider;
+    this.conflictStore = options.conflictStore;
     this.statePath = options.statePath;
     this.now = options.now ?? (() => new Date().toISOString());
+  }
+
+  private async detectAndStoreConflicts(
+    newEntryIds: string[],
+  ): Promise<number> {
+    if (!this.conflictStore) return 0;
+
+    const approved = await this.sharedStore.list({ approvalStatus: "approved" });
+
+    const newEntries = approved.filter((e) => newEntryIds.includes(e.id));
+    const existingEntries = approved.filter((e) => !newEntryIds.includes(e.id));
+
+    let conflictCount = 0;
+    for (const newEntry of newEntries) {
+      for (const existing of existingEntries) {
+        const result = classifyConflict(newEntry, existing);
+        if (!result.isConflict) continue;
+        if (result.conflictType === "specialization") continue;
+
+        const existingConflict = await this.conflictStore.findByEntryIds(
+          newEntry.id,
+          existing.id,
+        );
+        if (existingConflict) continue;
+
+        await this.conflictStore.add({
+          entryIdA: newEntry.id,
+          entryIdB: existing.id,
+          conflictType: result.conflictType,
+          subjectOverlap: result.subjectOverlap,
+          scopeOverlap: result.scopeOverlap,
+          suggestedWinnerId: result.suggestedWinnerId,
+          explanation: result.explanation,
+        });
+
+        await this.sharedStore.update(newEntry.id, {
+          contradictionCount: (newEntry.contradictionCount ?? 0) + 1,
+        });
+        await this.sharedStore.update(existing.id, {
+          contradictionCount: (existing.contradictionCount ?? 0) + 1,
+        });
+
+        conflictCount += 1;
+      }
+    }
+
+    return conflictCount;
   }
 
   async run(): Promise<ConsolidationRunResult> {
@@ -462,6 +514,13 @@ export class Consolidator {
           });
         }
       }
+
+      const conflictCount = await this.detectAndStoreConflicts(savedEntryIds);
+      log("debug", "consolidation.conflicts_detected", {
+        conflictCount,
+      }, {
+        ok: true,
+      });
 
       const lastConsolidatedAt = drafts.reduce(
         (latest, draft) => (draft.timestamp > latest ? draft.timestamp : latest),
